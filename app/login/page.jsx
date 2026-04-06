@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { swalSuccess , swalError } from "../components/Swal";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -47,10 +48,11 @@ export default function LoginPage() {
       if (!res.ok) {
         throw new Error(data?.error || "Login failed");
       }
-
+      swalSuccess("Login สำเร็จ");
       router.push("/admin");
       router.refresh();
     } catch (err) {
+      swalError(err.message);
       setError(err.message || "Something went wrong");
     } finally {
       setLoading(false);

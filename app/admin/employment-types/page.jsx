@@ -2,77 +2,64 @@
 
 import { useMemo, useState } from "react";
 
-export default function BranchesPage() {
+export default function EmploymentTypesPage() {
   const [search, setSearch] = useState("");
 
-  const [branches, setBranches] = useState([
+  const [employmentTypes, setEmploymentTypes] = useState([
     {
       id: 1,
-      code: "HQ",
-      name: "สำนักงานใหญ่",
-      company: "Hanuman World",
-      phone: "076-123-456",
+      type_code: "FULLTIME",
+      type_name: "พนักงานประจำ",
       status: "active",
     },
     {
       id: 2,
-      code: "BKK",
-      name: "สาขากรุงเทพ",
-      company: "Hanuman World",
-      phone: "02-123-4567",
+      type_code: "CONTRACT",
+      type_name: "พนักงานสัญญาจ้าง",
       status: "active",
     },
     {
       id: 3,
-      code: "CNX",
-      name: "สาขาเชียงใหม่",
-      company: "Hanuman World",
-      phone: "053-123-456",
+      type_code: "DAILY",
+      type_name: "พนักงานรายวัน",
       status: "inactive",
     },
   ]);
 
   const [form, setForm] = useState({
-    code: "",
-    name: "",
-    company: "",
-    phone: "",
+    type_code: "",
+    type_name: "",
     status: "active",
   });
 
   const [openModal, setOpenModal] = useState(false);
 
-  const filteredBranches = useMemo(() => {
-    return branches.filter((branch) => {
-      const keyword = search.toLowerCase();
+  const filteredEmploymentTypes = useMemo(() => {
+    const keyword = search.toLowerCase();
 
+    return employmentTypes.filter((item) => {
       return (
-        branch.code.toLowerCase().includes(keyword) ||
-        branch.name.toLowerCase().includes(keyword) ||
-        branch.company.toLowerCase().includes(keyword)
+        item.type_code.toLowerCase().includes(keyword) ||
+        item.type_name.toLowerCase().includes(keyword)
       );
     });
-  }, [branches, search]);
+  }, [employmentTypes, search]);
 
   const handleCreate = () => {
-    if (!form.code || !form.name) return;
+    if (!form.type_code || !form.type_name) return;
 
-    const newBranch = {
+    const newItem = {
       id: Date.now(),
-      code: form.code,
-      name: form.name,
-      company: form.company,
-      phone: form.phone,
+      type_code: form.type_code,
+      type_name: form.type_name,
       status: form.status,
     };
 
-    setBranches((prev) => [newBranch, ...prev]);
+    setEmploymentTypes((prev) => [newItem, ...prev]);
 
     setForm({
-      code: "",
-      name: "",
-      company: "",
-      phone: "",
+      type_code: "",
+      type_name: "",
       status: "active",
     });
 
@@ -85,9 +72,11 @@ export default function BranchesPage() {
       <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-slate-800">สังกัด</h1>
+            <h1 className="text-2xl font-bold text-slate-800">
+              ประเภทการจ้าง
+            </h1>
             <p className="text-sm text-slate-500 mt-1">
-              จัดการข้อมูลสังกัดของพนักงานในระบบ Employee Master
+              จัดการข้อมูลประเภทการจ้างของพนักงานในระบบ
             </p>
           </div>
 
@@ -96,7 +85,7 @@ export default function BranchesPage() {
             onClick={() => setOpenModal(true)}
             className="rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white hover:bg-slate-800 transition"
           >
-            + เพิ่มสังกัด
+            + เพิ่มประเภทการจ้าง
           </button>
         </div>
       </div>
@@ -105,7 +94,7 @@ export default function BranchesPage() {
       <div className="bg-white border border-slate-200 rounded-3xl p-4 shadow-sm">
         <input
           type="text"
-          placeholder="ค้นหารหัสสังกัด / ชื่อสังกัด / บริษัท"
+          placeholder="ค้นหารหัสประเภทการจ้าง / ชื่อประเภทการจ้าง"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-slate-500 focus:ring-4 focus:ring-slate-100"
@@ -118,49 +107,41 @@ export default function BranchesPage() {
           <table className="min-w-full text-sm">
             <thead className="bg-slate-100 text-slate-600">
               <tr>
-                <th className="px-6 py-4 text-left font-semibold">รหัส</th>
-                <th className="px-6 py-4 text-left font-semibold">สังกัด</th>
-                <th className="px-6 py-4 text-left font-semibold">บริษัท</th>
-                <th className="px-6 py-4 text-left font-semibold">เบอร์โทร</th>
+                <th className="px-6 py-4 text-left font-semibold">
+                  รหัสประเภทการจ้าง
+                </th>
+                <th className="px-6 py-4 text-left font-semibold">
+                  ชื่อประเภทการจ้าง
+                </th>
                 <th className="px-6 py-4 text-left font-semibold">สถานะ</th>
                 <th className="px-6 py-4 text-right font-semibold">จัดการ</th>
               </tr>
             </thead>
 
             <tbody>
-              {filteredBranches.length > 0 ? (
-                filteredBranches.map((branch) => (
+              {filteredEmploymentTypes.length > 0 ? (
+                filteredEmploymentTypes.map((item) => (
                   <tr
-                    key={branch.id}
+                    key={item.id}
                     className="border-t border-slate-200 hover:bg-slate-50"
                   >
                     <td className="px-6 py-4 font-medium text-slate-700">
-                      {branch.code}
+                      {item.type_code}
                     </td>
 
                     <td className="px-6 py-4 text-slate-700">
-                      {branch.name}
-                    </td>
-
-                    <td className="px-6 py-4 text-slate-600">
-                      {branch.company || "-"}
-                    </td>
-
-                    <td className="px-6 py-4 text-slate-600">
-                      {branch.phone || "-"}
+                      {item.type_name}
                     </td>
 
                     <td className="px-6 py-4">
                       <span
                         className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
-                          branch.status === "active"
+                          item.status === "active"
                             ? "bg-green-100 text-green-700"
                             : "bg-red-100 text-red-600"
                         }`}
                       >
-                        {branch.status === "active"
-                          ? "Active"
-                          : "Inactive"}
+                        {item.status === "active" ? "Active" : "Inactive"}
                       </span>
                     </td>
 
@@ -186,10 +167,10 @@ export default function BranchesPage() {
               ) : (
                 <tr>
                   <td
-                    colSpan={6}
+                    colSpan={4}
                     className="px-6 py-10 text-center text-slate-400"
                   >
-                    ไม่พบข้อมูลสังกัด
+                    ไม่พบข้อมูลประเภทการจ้าง
                   </td>
                 </tr>
               )}
@@ -204,82 +185,46 @@ export default function BranchesPage() {
           <div className="w-full max-w-2xl rounded-3xl bg-white shadow-2xl">
             <div className="border-b border-slate-200 px-6 py-4">
               <h2 className="text-xl font-bold text-slate-800">
-                เพิ่มสังกัด
+                เพิ่มประเภทการจ้าง
               </h2>
               <p className="text-sm text-slate-500 mt-1">
-                กรอกข้อมูลสังกัดใหม่
+                กรอกข้อมูลประเภทการจ้างใหม่
               </p>
             </div>
 
             <div className="grid grid-cols-1 gap-4 p-6 md:grid-cols-2">
               <div>
                 <label className="mb-2 block text-sm font-medium text-slate-700">
-                  รหัสสังกัด
+                  รหัสประเภทการจ้าง
                 </label>
                 <input
                   type="text"
-                  value={form.code}
+                  value={form.type_code}
                   onChange={(e) =>
                     setForm((prev) => ({
                       ...prev,
-                      code: e.target.value,
+                      type_code: e.target.value,
                     }))
                   }
-                  placeholder="เช่น HQ"
+                  placeholder="เช่น FULLTIME"
                   className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-slate-500 focus:ring-4 focus:ring-slate-100"
                 />
               </div>
 
               <div>
                 <label className="mb-2 block text-sm font-medium text-slate-700">
-                  ชื่อสังกัด
+                  ชื่อประเภทการจ้าง
                 </label>
                 <input
                   type="text"
-                  value={form.name}
+                  value={form.type_name}
                   onChange={(e) =>
                     setForm((prev) => ({
                       ...prev,
-                      name: e.target.value,
+                      type_name: e.target.value,
                     }))
                   }
-                  placeholder="เช่น สำนักงานใหญ่"
-                  className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-slate-500 focus:ring-4 focus:ring-slate-100"
-                />
-              </div>
-
-              <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">
-                  บริษัท
-                </label>
-                <input
-                  type="text"
-                  value={form.company}
-                  onChange={(e) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      company: e.target.value,
-                    }))
-                  }
-                  placeholder="เช่น Hanuman World"
-                  className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-slate-500 focus:ring-4 focus:ring-slate-100"
-                />
-              </div>
-
-              <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">
-                  เบอร์โทร
-                </label>
-                <input
-                  type="text"
-                  value={form.phone}
-                  onChange={(e) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      phone: e.target.value,
-                    }))
-                  }
-                  placeholder="เช่น 076-123-456"
+                  placeholder="เช่น พนักงานประจำ"
                   className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-slate-500 focus:ring-4 focus:ring-slate-100"
                 />
               </div>
