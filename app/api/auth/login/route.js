@@ -60,6 +60,11 @@ export async function POST(req) {
       );
     }
 
+    console.log("LOGIN_USERNAME:", username);
+    console.log("DB_USERNAME:", userAccount.username);
+    console.log("INPUT_PASSWORD:", password);
+    console.log("DB_HASH:", userAccount.password_hash);
+
     // =========================
     // 2) ตรวจสอบรหัสผ่าน
     // =========================
@@ -67,6 +72,9 @@ export async function POST(req) {
       password,
       userAccount.password_hash
     );
+
+    console.log("isPasswordValid:", isPasswordValid);
+    
 
     if (!isPasswordValid) {
       return NextResponse.json(
