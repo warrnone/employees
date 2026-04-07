@@ -1,30 +1,9 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
 
 export default function AdminPage() {
   const router = useRouter();
-  const [loadingLogout, setLoadingLogout] = useState(false);
-
-  const handleLogout = async () => {
-    if (loadingLogout) return;
-
-    setLoadingLogout(true);
-
-    try {
-      await fetch("/api/auth/logout", {
-        method: "POST",
-      });
-
-      router.push("/login");
-      router.refresh();
-    } catch (error) {
-      console.error("Logout failed:", error);
-    } finally {
-      setLoadingLogout(false);
-    }
-  };
 
   return (
     <div className="min-h-screen bg-slate-100">
@@ -38,19 +17,6 @@ export default function AdminPage() {
             Employee Master System
           </p>
         </div>
-
-        <button
-          type="button"
-          onClick={handleLogout}
-          disabled={loadingLogout}
-          className={`rounded-xl px-5 py-2.5 text-sm font-semibold text-white transition ${
-            loadingLogout
-              ? "bg-slate-400 cursor-not-allowed"
-              : "bg-red-500 hover:bg-red-600"
-          }`}
-        >
-          {loadingLogout ? "Signing out..." : "Logout"}
-        </button>
       </div>
 
       {/* Content */}

@@ -2,30 +2,20 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { swalSuccess , swalError } from "../components/Swal";
+import { swalSuccess, swalError } from "../components/Swal";
+import { Form, Input, Button, Alert, Card, Typography } from "antd";
+import { UserOutlined, LockOutlined, EyeTwoTone, EyeInvisibleOutlined } from "@ant-design/icons";
+import Image from "next/image";
+
+const { Title, Text } = Typography;
 
 export default function LoginPage() {
   const router = useRouter();
-
-  const [form, setForm] = useState({
-    username: "",
-    password: "",
-  });
-
-  const [showPassword, setShowPassword] = useState(false);
+  const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const handleChange = (e) => {
-    setForm((prev) => ({
-      ...prev,
-      [e.target.name]: e.target.value,
-    }));
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
+  const handleSubmit = async (values) => {
     if (loading) return;
 
     setLoading(true);
@@ -38,8 +28,8 @@ export default function LoginPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          username: form.username.trim(),
-          password: form.password,
+          username: values.username.trim(),
+          password: values.password,
         }),
       });
 
@@ -48,6 +38,7 @@ export default function LoginPage() {
       if (!res.ok) {
         throw new Error(data?.error || "Login failed");
       }
+
       swalSuccess("Login สำเร็จ");
       router.push("/admin");
       router.refresh();
@@ -60,90 +51,123 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-100 via-white to-slate-200 flex items-center justify-center px-4">
-      <div className="w-full max-w-md">
-        <div className="bg-white shadow-2xl rounded-3xl border border-slate-200 overflow-hidden">
-          {/* Header */}
-          <div className="px-8 pt-8 pb-6 text-center bg-slate-900 text-white">
-            <h1 className="text-3xl font-bold tracking-tight">
+    <div className="min-h-screen bg-gradient-to-br from-slate-100 via-white to-emerald-50 flex items-center justify-center px-4 py-8">
+      <div className="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-2 rounded-[28px] overflow-hidden shadow-2xl border border-slate-200 bg-white">
+        
+        {/* Left Section */}
+        <div className="hidden lg:flex flex-col justify-between bg-gradient-to-br from-emerald-600 to-emerald-800 text-white p-10">
+          <div>
+            <div className="mb-6">
+              <Image
+                src="/hanuman-logo.jpg"
+                alt="Hanuman World"
+                width={150}
+                height={150}
+                className="rounded-full object-cover border-4 border-white/30"
+              />
+            </div>
+
+            <Title level={2} className="!text-white !mb-2">
               Employee Master
-            </h1>
-            <p className="text-sm text-slate-300 mt-2">
-              Sign in to access the system
-            </p>
+            </Title>
+
+            <Text className="!text-emerald-100 text-base">
+              Sign in to manage employee data, organization structure, and HR administration in one place.
+            </Text>
           </div>
 
-          {/* Form */}
-          <div className="p-8">
-            <form onSubmit={handleSubmit} className="space-y-5">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Username
-                </label>
-                <input
-                  type="text"
-                  name="username"
-                  value={form.username}
-                  onChange={handleChange}
+          <div className="mt-10 rounded-2xl bg-white/10 border border-white/20 p-5 backdrop-blur-sm">
+            <p className="text-sm font-semibold mb-2">Demo Account</p>
+            <p className="text-sm text-emerald-50">Username: admin</p>
+            <p className="text-sm text-emerald-50">Password: 1234</p>
+          </div>
+        </div>
+
+        {/* Right Section */}
+        <div className="flex items-center justify-center p-6 sm:p-10 bg-white">
+          <Card
+            variant="borderless"
+            className="w-full max-w-md shadow-none"
+            styles={{ body: { padding: 0 } }}
+          >
+            <div className="flex text-center mb-8 ">
+              <Image
+                src="/hanuman-logo.jpg"
+                alt="Hanuman World"
+                width={100}
+                height={100}
+                className="mx-auto rounded-full object-cover"
+              />
+            </div>
+
+            <div className="mb-8">
+              <Title level={2} className="!mb-1 !text-slate-800">
+                Welcome Back
+              </Title>
+              <Text className="text-slate-500">
+                Please enter your username and password
+              </Text>
+            </div>
+
+            {error ? (
+              <Alert
+                title={error}
+                type="error"
+                showIcon
+                className="!mb-5 rounded-xl"
+              />
+            ) : null}
+
+            <Form
+              form={form}
+              layout="vertical"
+              onFinish={handleSubmit}
+              autoComplete="off"
+              size="large"
+            >
+              <Form.Item
+                label={<span className="font-medium text-slate-700">Username</span>}
+                name="username"
+                rules={[{ required: true, message: "Please enter username" }]}
+              >
+                <Input
+                  prefix={<UserOutlined className="text-slate-400" />}
                   placeholder="Enter username"
                   autoComplete="username"
-                  className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none transition focus:border-slate-500 focus:ring-4 focus:ring-slate-100"
-                  required
+                  className="!rounded-2xl !py-2"
                 />
-              </div>
+              </Form.Item>
 
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Password
-                </label>
-
-                <div className="relative">
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    name="password"
-                    value={form.password}
-                    onChange={handleChange}
-                    placeholder="Enter password"
-                    autoComplete="current-password"
-                    className="w-full rounded-2xl border border-slate-300 px-4 py-3 pr-20 text-sm outline-none transition focus:border-slate-500 focus:ring-4 focus:ring-slate-100"
-                    required
-                  />
-
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword((prev) => !prev)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-sm font-medium text-slate-500 hover:text-slate-700"
-                  >
-                    {showPassword ? "Hide" : "Show"}
-                  </button>
-                </div>
-              </div>
-
-              {error ? (
-                <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
-                  {error}
-                </div>
-              ) : null}
-
-              <button
-                type="submit"
-                disabled={loading}
-                className={`w-full rounded-2xl py-3 text-sm font-semibold text-white transition-all ${
-                  loading
-                    ? "bg-slate-400 cursor-not-allowed"
-                    : "bg-slate-900 hover:bg-slate-800"
-                }`}
+              <Form.Item
+                label={<span className="font-medium text-slate-700">Password</span>}
+                name="password"
+                rules={[{ required: true, message: "Please enter password" }]}
               >
-                {loading ? "Signing in..." : "Login"}
-              </button>
-            </form>
+                <Input.Password
+                  prefix={<LockOutlined className="text-slate-400" />}
+                  placeholder="Enter password"
+                  autoComplete="current-password"
+                  iconRender={(visible) =>
+                    visible ? <EyeTwoTone /> : <EyeInvisibleOutlined />
+                  }
+                  className="!rounded-2xl !py-2"
+                />
+              </Form.Item>
 
-            <div className="mt-6 rounded-2xl bg-slate-50 border border-slate-200 px-4 py-3 text-xs text-slate-500">
-              <p className="font-semibold text-slate-700 mb-1">Demo Account</p>
-              <p>Username: admin</p>
-              <p>Password: 1234</p>
-            </div>
-          </div>
+              <Form.Item className="!mb-3">
+                <Button
+                  type="primary"
+                  htmlType="submit"
+                  loading={loading}
+                  block
+                  className="login-btn !h-12 !rounded-2xl !bg-slate-900 hover:!bg-slate-800 !border-slate-900 text-sm font-semibold relative overflow-hidden"
+                >
+                  {loading ? "Signing in..." : "Login"}
+                </Button>
+              </Form.Item>
+            </Form>
+            
+          </Card>
         </div>
       </div>
     </div>
