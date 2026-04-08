@@ -63,3 +63,35 @@ body {
     0 0 28px rgba(0, 255, 200, 0.3);
   transform: translateY(-1px);
 }
+
+
+/*  Phone สังกัด */
+
+.phone-input-modern input {
+  width: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 16px;
+  line-height: 1.6;
+  caret-color: #334155;
+}
+
+.phone-input-modern input::placeholder {
+  color: #94a3b8;
+}
+
+.phone-input-modern .PhoneInputCountry {
+  margin-right: 11px;
+}
+
+.phone-input-modern .PhoneInputCountrySelect {
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 14px;
+  color: #334155;
+  cursor: pointer;
+}
+
+/* End phone */

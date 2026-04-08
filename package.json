@@ -14,9 +14,11 @@
     "antd": "^6.3.5",
     "bcryptjs": "^3.0.3",
     "jsonwebtoken": "^9.0.3",
+    "libphonenumber-js": "^1.12.41",
     "next": "16.2.2",
     "react": "19.2.4",
     "react-dom": "19.2.4",
+    "react-phone-number-input": "^3.4.16",
     "sweetalert2": "^11.26.24"
   },
   "devDependencies": {

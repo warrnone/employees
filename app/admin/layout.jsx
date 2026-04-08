@@ -3,63 +3,25 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
-import { swalSuccess, swalError } from "../components/Swal";
+import { sidebarMenus } from "./components/sidebarMenus";
+import { swalSuccess, swalError , swalConfirm  } from "../components/Swal";
 import { Button, Tooltip, Tag } from "antd";
-import {
-  DashboardOutlined,
-  ApartmentOutlined,
-  TeamOutlined,
-  UserOutlined,
-  LogoutOutlined,
-  LoadingOutlined,
-  BankOutlined,
-  SolutionOutlined,
-  IdcardOutlined,
-  SafetyOutlined,
-  KeyOutlined,
-  UsergroupAddOutlined,
-} from "@ant-design/icons";
+import { LogoutOutlined,LoadingOutlined } from "@ant-design/icons";
 
 export default function AdminLayout({ children }) {
   const pathname = usePathname();
   const router = useRouter();
   const [loggingOut, setLoggingOut] = useState(false);
-
-  const menus = [
-    {
-      title: "MAIN",
-      items: [
-        { label: "Dashboard", href: "/admin", icon: <DashboardOutlined /> },
-      ],
-    },
-    {
-      title: "ORGANIZATION",
-      items: [
-        { label: "สังกัด", href: "/admin/branches", icon: <BankOutlined /> },
-        { label: "ฝ่าย", href: "/admin/departments", icon: <ApartmentOutlined /> },
-        { label: "หน่วย", href: "/admin/units", icon: <TeamOutlined /> },
-        { label: "ตำแหน่ง", href: "/admin/positions", icon: <SolutionOutlined /> },
-      ],
-    },
-    {
-      title: "EMPLOYEE MASTER",
-      items: [
-        { label: "พนักงาน", href: "/admin/employees", icon: <IdcardOutlined /> },
-        { label: "ประเภทการจ้าง", href: "/admin/employment-types", icon: <UsergroupAddOutlined /> },
-        { label: "สถานะพนักงาน", href: "/admin/employee-statuses", icon: <SafetyOutlined /> },
-      ],
-    },
-    {
-      title: "USER ACCESS",
-      items: [
-        { label: "ผู้ใช้งานระบบ", href: "/admin/user-accounts", icon: <UserOutlined /> },
-        { label: "Roles", href: "/admin/roles", icon: <SafetyOutlined /> },
-        { label: "Permissions", href: "/admin/permissions", icon: <KeyOutlined /> },
-      ],
-    },
-  ];
+  const menus = sidebarMenus;
 
   const handleLogout = async () => {
+    const result = await swalConfirm(
+      "ออกจากระบบ?",
+      "คุณต้องการออกจากระบบ Admin ใช่หรือไม่"
+    );
+
+    if (!result.isConfirmed) return;
+
     if (loggingOut) return;
     setLoggingOut(true);
     try {
