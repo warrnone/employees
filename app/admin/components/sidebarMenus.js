@@ -1,4 +1,4 @@
-import { DashboardOutlined,ApartmentOutlined,TeamOutlined,UserOutlined,BankOutlined,SolutionOutlined,IdcardOutlined,SafetyOutlined,KeyOutlined,UsergroupAddOutlined,} from "@ant-design/icons";
+import { DashboardOutlined,ShopOutlined,ApartmentOutlined,TeamOutlined,UserOutlined,BankOutlined,SolutionOutlined,IdcardOutlined,SafetyOutlined,KeyOutlined,UsergroupAddOutlined,} from "@ant-design/icons";
 
 export const sidebarMenus = [
   {
@@ -14,6 +14,11 @@ export const sidebarMenus = [
   {
     title: "ORGANIZATION",
     items: [
+      {
+        label: "บริษัท",
+        href: "/admin/companies",
+        icon: <ShopOutlined  />,
+      },
       {
         label: "สังกัด",
         href: "/admin/branches",

@@ -12,18 +12,27 @@ export async function GET(req) {
         id,
         branch_code,
         branch_name,
-        company_name,
+        company_id,
         phone,
         status,
         sort_order,
-        created_at
+        created_at,
+        companies (
+          id,
+          company_code,
+          company_name_th,
+          company_name_en
+        )
       `)
       .order("sort_order", { ascending: true })
       .order("created_at", { ascending: false });
 
     if (search) {
       query = query.or(
-        `branch_code.ilike.%${search}%,branch_name.ilike.%${search}%,company_name.ilike.%${search}%`
+        [
+          `branch_code.ilike.%${search}%`,
+          `branch_name.ilike.%${search}%`,
+        ].join(",")
       );
     }
 
@@ -31,9 +40,38 @@ export async function GET(req) {
 
     if (error) throw error;
 
+    const mappedData = (data || []).map((branch) => ({
+      id: branch.id,
+      branch_code: branch.branch_code,
+      branch_name: branch.branch_name,
+      company_id: branch.company_id,
+      company_name:
+        branch.companies?.company_name_th ||
+        branch.companies?.company_name_en ||
+        "-",
+      company_code: branch.companies?.company_code || "",
+      phone: branch.phone,
+      status: branch.status,
+      sort_order: branch.sort_order,
+      created_at: branch.created_at,
+    }));
+
+    const filteredData = search
+      ? mappedData.filter((item) => {
+          const keyword = search.toLowerCase();
+
+          return (
+            item.branch_code?.toLowerCase().includes(keyword) ||
+            item.branch_name?.toLowerCase().includes(keyword) ||
+            item.company_name?.toLowerCase().includes(keyword) ||
+            item.company_code?.toLowerCase().includes(keyword)
+          );
+        })
+      : mappedData;
+
     return NextResponse.json({
       success: true,
-      data: data || [],
+      data: filteredData,
     });
   } catch (error) {
     console.error("GET_BRANCHES_ERROR:", error);
@@ -51,7 +89,7 @@ export async function POST(req) {
 
     const branch_code = body?.branch_code?.trim();
     const branch_name = body?.branch_name?.trim();
-    const company_name = body?.company_name?.trim() || null;
+    const company_id = body?.company_id || null;
     const phone = body?.phone?.trim() || null;
     const status = body?.status || "active";
 
@@ -62,13 +100,20 @@ export async function POST(req) {
       );
     }
 
+    if (!company_id) {
+      return NextResponse.json(
+        { error: "กรุณาเลือกบริษัท" },
+        { status: 400 }
+      );
+    }
+
     const { data, error } = await supabaseAdmin
       .from("branches")
       .insert([
         {
           branch_code,
           branch_name,
-          company_name,
+          company_id,
           phone,
           status,
         },
@@ -77,11 +122,17 @@ export async function POST(req) {
         id,
         branch_code,
         branch_name,
-        company_name,
+        company_id,
         phone,
         status,
         sort_order,
-        created_at
+        created_at,
+        companies (
+          id,
+          company_code,
+          company_name_th,
+          company_name_en
+        )
       `)
       .single();
 
@@ -99,7 +150,21 @@ export async function POST(req) {
     return NextResponse.json({
       success: true,
       message: "เพิ่มสังกัดสำเร็จ",
-      data,
+      data: {
+        id: data.id,
+        branch_code: data.branch_code,
+        branch_name: data.branch_name,
+        company_id: data.company_id,
+        company_name:
+          data.companies?.company_name_th ||
+          data.companies?.company_name_en ||
+          "-",
+        company_code: data.companies?.company_code || "",
+        phone: data.phone,
+        status: data.status,
+        sort_order: data.sort_order,
+        created_at: data.created_at,
+      },
     });
   } catch (error) {
     console.error("CREATE_BRANCH_ERROR:", error);

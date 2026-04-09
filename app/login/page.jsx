@@ -63,6 +63,8 @@ export default function LoginPage() {
                 alt="Hanuman World"
                 width={150}
                 height={150}
+                loading="eager"   // เพิ่มตรงนี้
+                style={{ width: 'auto', height: 'auto' }}  // เพิ่มตรงนี้
                 className="rounded-full object-cover border-4 border-white/30"
               />
             </div>
@@ -97,6 +99,8 @@ export default function LoginPage() {
                 width={100}
                 height={100}
                 className="mx-auto rounded-full object-cover"
+                loading="eager"   // เพิ่มตรงนี้
+                style={{ width: 'auto', height: 'auto' }}  // เพิ่มตรงนี้
               />
             </div>
 

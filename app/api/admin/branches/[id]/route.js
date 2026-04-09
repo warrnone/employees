@@ -8,7 +8,7 @@ export async function PATCH(req, { params }) {
 
     const branch_code = body?.branch_code?.trim();
     const branch_name = body?.branch_name?.trim();
-    const company_name = body?.company_name?.trim() || null;
+    const company_id = body?.company_id || null;
     const phone = body?.phone?.trim() || null;
     const status = body?.status || "active";
 
@@ -19,12 +19,19 @@ export async function PATCH(req, { params }) {
       );
     }
 
+    if (!company_id) {
+      return NextResponse.json(
+        { error: "กรุณาเลือกบริษัท" },
+        { status: 400 }
+      );
+    }
+
     const { data, error } = await supabaseAdmin
       .from("branches")
       .update({
         branch_code,
         branch_name,
-        company_name,
+        company_id,
         phone,
         status,
         updated_at: new Date().toISOString(),
@@ -34,12 +41,18 @@ export async function PATCH(req, { params }) {
         id,
         branch_code,
         branch_name,
-        company_name,
+        company_id,
         phone,
         status,
         sort_order,
         created_at,
-        updated_at
+        updated_at,
+        companies (
+          id,
+          company_code,
+          company_name_th,
+          company_name_en
+        )
       `)
       .single();
 
@@ -57,7 +70,22 @@ export async function PATCH(req, { params }) {
     return NextResponse.json({
       success: true,
       message: "แก้ไขข้อมูลสังกัดสำเร็จ",
-      data,
+      data: {
+        id: data.id,
+        branch_code: data.branch_code,
+        branch_name: data.branch_name,
+        company_id: data.company_id,
+        company_name:
+          data.companies?.company_name_th ||
+          data.companies?.company_name_en ||
+          "-",
+        company_code: data.companies?.company_code || "",
+        phone: data.phone,
+        status: data.status,
+        sort_order: data.sort_order,
+        created_at: data.created_at,
+        updated_at: data.updated_at,
+      },
     });
   } catch (error) {
     console.error("UPDATE_BRANCH_ERROR:", error);
