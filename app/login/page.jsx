@@ -55,34 +55,53 @@ export default function LoginPage() {
       <div className="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-2 rounded-[28px] overflow-hidden shadow-2xl border border-slate-200 bg-white">
         
         {/* Left Section */}
-        <div className="hidden lg:flex flex-col justify-between bg-gradient-to-br from-emerald-600 to-emerald-800 text-white p-10">
-          <div>
-            <div className="mb-6">
-              <Image
-                src="/hanuman-logo.jpg"
-                alt="Hanuman World"
-                width={150}
-                height={150}
-                loading="eager"   // เพิ่มตรงนี้
-                style={{ width: 'auto', height: 'auto' }}  // เพิ่มตรงนี้
-                className="rounded-full object-cover border-4 border-white/30"
-              />
+        <div className="hidden lg:flex flex-col justify-between bg-gradient-to-br from-emerald-600 via-emerald-700 to-teal-800 text-white p-10 relative overflow-hidden">
+          {/* background glow */}
+          <div className="absolute -top-16 -right-16 w-56 h-56 bg-white/10 rounded-full blur-3xl" />
+          <div className="absolute -bottom-20 -left-10 w-72 h-72 bg-emerald-300/10 rounded-full blur-3xl" />
+
+          <div className="relative z-10">
+            <div className="inline-flex items-center rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-sm font-medium backdrop-blur-sm">
+              HR Administration Platform
             </div>
 
-            <Title level={2} className="!text-white !mb-2">
-              Employee Master
-            </Title>
+            <div className="mt-8 space-y-4">
+              <Title level={1} className="!text-white !mb-0 !text-4xl !leading-tight">
+                Employee
+                <br />
+                Master System
+              </Title>
 
-            <Text className="!text-emerald-100 text-base">
-              Sign in to manage employee data, organization structure, and HR administration in one place.
-            </Text>
+              <Text className="!text-emerald-50 text-base leading-7 block max-w-md">
+                Manage employee profiles, organization structure, and HR administration
+                in one centralized system with a clean and modern workflow.
+              </Text>
+            </div>
+
+            <div className="mt-10 space-y-4">
+              <div className="rounded-2xl bg-white/10 border border-white/20 p-4 backdrop-blur-sm">
+                <p className="text-sm font-semibold text-white">Centralized Employee Data</p>
+                <p className="text-sm text-emerald-100 mt-1">
+                  Keep all employee records in one secure and searchable place.
+                </p>
+              </div>
+
+              <div className="rounded-2xl bg-white/10 border border-white/20 p-4 backdrop-blur-sm">
+                <p className="text-sm font-semibold text-white">Organization Structure</p>
+                <p className="text-sm text-emerald-100 mt-1">
+                  Manage company, department, branch, and employment setup clearly.
+                </p>
+              </div>
+
+              <div className="rounded-2xl bg-white/10 border border-white/20 p-4 backdrop-blur-sm">
+                <p className="text-sm font-semibold text-white">Ready for HR Expansion</p>
+                <p className="text-sm text-emerald-100 mt-1">
+                  Extend toward benefits, attendance, leave, and payroll modules later.
+                </p>
+              </div>
+            </div>
           </div>
 
-          <div className="mt-10 rounded-2xl bg-white/10 border border-white/20 p-5 backdrop-blur-sm">
-            <p className="text-sm font-semibold mb-2">Demo Account</p>
-            <p className="text-sm text-emerald-50">Username: admin</p>
-            <p className="text-sm text-emerald-50">Password: 1234</p>
-          </div>
         </div>
 
         {/* Right Section */}
@@ -99,8 +118,8 @@ export default function LoginPage() {
                 width={100}
                 height={100}
                 className="mx-auto rounded-full object-cover"
-                loading="eager"   // เพิ่มตรงนี้
-                style={{ width: 'auto', height: 'auto' }}  // เพิ่มตรงนี้
+                style={{ width: "auto", height: "auto" }}
+                loading="eager"
               />
             </div>
 
