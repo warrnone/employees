@@ -6,7 +6,7 @@ export async function GET(req) {
     const { searchParams } = new URL(req.url);
     const search = searchParams.get("search")?.trim() || "";
 
-    let query = supabaseAdmin
+    const { data, error } = await supabaseAdmin
       .from("branches")
       .select(`
         id,
@@ -27,17 +27,6 @@ export async function GET(req) {
       .order("sort_order", { ascending: true })
       .order("created_at", { ascending: false });
 
-    if (search) {
-      query = query.or(
-        [
-          `branch_code.ilike.%${search}%`,
-          `branch_name.ilike.%${search}%`,
-        ].join(",")
-      );
-    }
-
-    const { data, error } = await query;
-
     if (error) throw error;
 
     const mappedData = (data || []).map((branch) => ({
@@ -56,10 +45,8 @@ export async function GET(req) {
       created_at: branch.created_at,
     }));
 
-    const filteredData = search
-      ? mappedData.filter((item) => {
+    const filteredData = search ? mappedData.filter((item) => {
           const keyword = search.toLowerCase();
-
           return (
             item.branch_code?.toLowerCase().includes(keyword) ||
             item.branch_name?.toLowerCase().includes(keyword) ||

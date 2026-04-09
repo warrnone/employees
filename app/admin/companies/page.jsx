@@ -255,7 +255,7 @@ export default function CompaniesPage() {
             <tbody>
               {loading ? (
                 <>
-                  {[...Array(5)].map((_, i) => (
+                  {[...Array(companies.length)].map((_, i) => (
                     <tr key={i} className="border-t border-slate-200">
                       <td className="px-6 py-4">
                         <div className="h-3.5 w-16 animate-pulse rounded-md bg-slate-200" />

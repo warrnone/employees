@@ -68,6 +68,7 @@ export default function BranchesPage() {
         id: branch.id,
         code: branch.branch_code,
         name: branch.branch_name,
+        company_id: branch.company_id || "",
         company: branch.company_name || "",
         phone: branch.phone || "",
         status: branch.status,
@@ -168,6 +169,7 @@ export default function BranchesPage() {
         id: data.data.id,
         code: data.data.branch_code,
         name: data.data.branch_name,
+        company_id: data.data.company_id || "",
         company: data.data.company_name || "",
         phone: data.data.phone || "",
         status: data.data.status,
@@ -424,7 +426,7 @@ export default function BranchesPage() {
                       name: e.target.value,
                     }))
                   }
-                  placeholder="เช่น สำนักงานใหญ่"
+                  placeholder="เช่น Hanuman World"
                   className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-slate-500 focus:ring-4 focus:ring-slate-100"
                 />
               </div>
