@@ -25,7 +25,7 @@ export const sidebarMenus = [
         icon: <BankOutlined />,
       },
       {
-        label: "ฝ่าย",
+        label: "ฝ่าย/แผนก",
         href: "/admin/departments",
         icon: <ApartmentOutlined />,
       },

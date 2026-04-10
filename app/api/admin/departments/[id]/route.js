@@ -1,0 +1,154 @@
+import { NextResponse } from "next/server";
+import { supabaseAdmin } from "@/lib/supabaseServer";
+
+export async function PATCH(req, { params }) {
+  try {
+    const { id } = await params;
+    const body = await req.json();
+
+    const department_code = body?.department_code?.trim();
+    const department_name = body?.department_name?.trim();
+    const branch_ids = Array.isArray(body?.branch_ids) ? body.branch_ids : [];
+    const phone = body?.phone?.trim() || null;
+    const status = body?.status || "active";
+
+    if (!department_code || !department_name) {
+      return NextResponse.json(
+        { error: "กรุณากรอกรหัสฝ่ายและชื่อฝ่าย" },
+        { status: 400 }
+      );
+    }
+
+    if (!branch_ids.length) {
+      return NextResponse.json(
+        { error: "กรุณาเลือกสังกัดอย่างน้อย 1 รายการ" },
+        { status: 400 }
+      );
+    }
+
+    const { data: existingDepartment } = await supabaseAdmin
+      .from("departments")
+      .select("id")
+      .eq("department_code", department_code)
+      .neq("id", id)
+      .maybeSingle();
+
+    if (existingDepartment) {
+      return NextResponse.json(
+        { error: "รหัสฝ่ายนี้มีอยู่แล้ว" },
+        { status: 400 }
+      );
+    }
+
+    const { error: updateError } = await supabaseAdmin
+      .from("departments")
+      .update({
+        department_code,
+        department_name,
+        phone,
+        status,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", id);
+
+    if (updateError) throw updateError;
+
+    const { error: deleteRelationError } = await supabaseAdmin
+      .from("branch_departments")
+      .delete()
+      .eq("department_id", id);
+
+    if (deleteRelationError) throw deleteRelationError;
+
+    const relationPayload = branch_ids.map((branch_id) => ({
+      branch_id,
+      department_id: id,
+      status: "active",
+    }));
+
+    const { error: insertRelationError } = await supabaseAdmin
+      .from("branch_departments")
+      .insert(relationPayload);
+
+    if (insertRelationError) throw insertRelationError;
+
+    const { data, error } = await supabaseAdmin
+      .from("departments")
+      .select(`
+        id,
+        department_code,
+        department_name,
+        phone,
+        status,
+        sort_order,
+        created_at,
+        branch_departments (
+          branch_id,
+          branches (
+            id,
+            branch_code,
+            branch_name
+          )
+        )
+      `)
+      .eq("id", id)
+      .single();
+
+    if (error) throw error;
+
+    const branchRows = data.branch_departments || [];
+
+    return NextResponse.json({
+      success: true,
+      message: "อัพเดทข้อมูลฝ่ายสำเร็จ",
+      data: {
+        id: data.id,
+        department_code: data.department_code,
+        department_name: data.department_name,
+        branch_ids: branchRows.map((row) => row.branch_id),
+        branch_names: branchRows
+          .map((row) => row.branches?.branch_name)
+          .filter(Boolean),
+        branch_codes: branchRows
+          .map((row) => row.branches?.branch_code)
+          .filter(Boolean),
+        phone: data.phone || "",
+        status: data.status,
+        sort_order: data.sort_order,
+        created_at: data.created_at,
+      },
+    });
+  } catch (error) {
+    console.error("UPDATE_DEPARTMENT_ERROR:", error);
+
+    return NextResponse.json(
+      { error: "ไม่สามารถอัพเดทข้อมูลฝ่ายได้" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(req, { params }) {
+  try {
+    const { id } = await params;
+
+    const { error } = await supabaseAdmin
+      .from("departments")
+      .delete()
+      .eq("id", id);
+
+    if (error) throw error;
+
+    return NextResponse.json({
+      success: true,
+      message: "ลบข้อมูลฝ่ายสำเร็จ",
+    });
+  } catch (error) {
+    console.error("DELETE_DEPARTMENT_ERROR:", error);
+
+    return NextResponse.json(
+      { error: "ไม่สามารถลบข้อมูลฝ่ายได้" },
+      { status: 500 }
+    );
+  }
+}
