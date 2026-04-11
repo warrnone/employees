@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import {swalSuccess,swalError,swalConfirm,} from "../../components/Swal";
+import { swalSuccess, swalError, swalConfirm } from "../../components/Swal";
 import { Tooltip } from "antd";
 
 const initialForm = {
@@ -40,6 +40,7 @@ export default function DepartmentsPage() {
       setBranches(data.data || []);
     } catch (err) {
       console.error(err);
+      swalError(err.message || "ไม่สามารถโหลดข้อมูลสาขาได้");
     }
   };
 
@@ -74,6 +75,7 @@ export default function DepartmentsPage() {
 
       setDepartments(mapped);
     } catch (err) {
+      console.error(err);
       setError(err.message || "เกิดข้อผิดพลาดในการโหลดข้อมูล");
     } finally {
       setLoading(false);
@@ -123,12 +125,12 @@ export default function DepartmentsPage() {
 
   const handleSave = async () => {
     if (!form.code.trim() || !form.name.trim()) {
-      swalError("กรุณากรอกรหัสฝ่ายและชื่อฝ่าย");
+      swalError("กรุณากรอกรหัสแผนกและชื่อแผนก");
       return;
     }
 
     if (!form.branch_ids.length) {
-      swalError("กรุณาเลือกสังกัดอย่างน้อย 1 รายการ");
+      swalError("กรุณาเลือกสาขาอย่างน้อย 1 รายการ");
       return;
     }
 
@@ -176,14 +178,15 @@ export default function DepartmentsPage() {
             item.id === savedDepartment.id ? savedDepartment : item
           )
         );
-        swalSuccess("ระบบอัพเดทข้อมูลเรียบร้อยแล้ว!");
+        swalSuccess("อัพเดทข้อมูลแผนกเรียบร้อยแล้ว");
       } else {
         setDepartments((prev) => [savedDepartment, ...prev]);
-        swalSuccess("ระบบบันทึกข้อมูลเรียบร้อยแล้ว!");
+        swalSuccess("บันทึกข้อมูลแผนกเรียบร้อยแล้ว");
       }
 
       handleCloseModal();
     } catch (err) {
+      console.error(err);
       swalError(err.message || "เกิดข้อผิดพลาดในการบันทึก");
     } finally {
       setSaving(false);
@@ -192,7 +195,7 @@ export default function DepartmentsPage() {
 
   const handleDelete = async (department) => {
     const confirmed = await swalConfirm(
-      `ต้องการลบฝ่าย "${department.name}" ใช่หรือไม่?`
+      `ต้องการลบแผนก "${department.name}" ใช่หรือไม่?`
     );
 
     if (!confirmed) return;
@@ -200,12 +203,9 @@ export default function DepartmentsPage() {
     try {
       setDeletingId(department.id);
 
-      const res = await fetch(
-        `/api/admin/departments/${department.id}`,
-        {
-          method: "DELETE",
-        }
-      );
+      const res = await fetch(`/api/admin/departments/${department.id}`, {
+        method: "DELETE",
+      });
 
       const data = await res.json();
 
@@ -219,6 +219,7 @@ export default function DepartmentsPage() {
 
       swalSuccess("ลบข้อมูลเรียบร้อยแล้ว");
     } catch (err) {
+      console.error(err);
       swalError(err.message || "เกิดข้อผิดพลาดในการลบข้อมูล");
     } finally {
       setDeletingId("");
@@ -228,18 +229,18 @@ export default function DepartmentsPage() {
   const BranchBadges = ({ names = [] }) => {
     const SHOW = 4;
     const visible = names.slice(0, SHOW);
-    const hidden  = names.slice(SHOW);
+    const hidden = names.slice(SHOW);
 
     if (!names.length) return <span className="text-slate-400">-</span>;
 
     return (
-      <div className="flex flex-wrap gap-1.5 items-center">
+      <div className="flex flex-wrap items-center gap-1.5">
         {visible.map((name) => (
           <span
             key={name}
             className="inline-flex items-center gap-1.5 rounded-[5px] border border-slate-400 bg-white px-2.5 py-0.5 text-[11px] font-medium text-slate-700 whitespace-nowrap"
           >
-            <span className="w-1.5 h-1.5 rounded-full bg-slate-400 flex-shrink-0" />
+            <span className="h-1.5 w-1.5 rounded-full bg-slate-400 flex-shrink-0" />
             {name}
           </span>
         ))}
@@ -250,53 +251,50 @@ export default function DepartmentsPage() {
               <div className="flex flex-col gap-1 py-0.5">
                 {hidden.map((name) => (
                   <div key={name} className="flex items-center gap-2 text-[11px]">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 flex-shrink-0" />
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 flex-shrink-0" />
                     {name}
                   </div>
                 ))}
               </div>
             }
             placement="top"
-            styles={{ borderRadius: 8, padding: "8px 12px", background: "#0f172a" }}
             color="#0f172a"
           >
-            <span className="inline-flex items-center gap-1.5 rounded-[5px] border border-emerald-300 bg-emerald-50 px-2.5 py-0.5 text-[11px] font-medium text-emerald-700 cursor-pointer hover:bg-emerald-100 transition-colors whitespace-nowrap">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 flex-shrink-0" />
+            <span className="inline-flex cursor-pointer items-center gap-1.5 rounded-[5px] border border-emerald-300 bg-emerald-50 px-2.5 py-0.5 text-[11px] font-medium text-emerald-700 transition-colors hover:bg-emerald-100 whitespace-nowrap">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 flex-shrink-0" />
               +{hidden.length} more
             </span>
           </Tooltip>
         )}
       </div>
     );
-  }
-  
+  };
+
   return (
     <div className="space-y-6">
-      {/* Head */}
-      <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm">
+      <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-slate-800">ฝ่าย / แผนก</h1>
-            <p className="text-sm text-slate-500 mt-1">
-              จัดการข้อมูลฝ่ายในองค์กร
+            <h1 className="text-2xl font-bold text-slate-800">แผนก</h1>
+            <p className="mt-1 text-sm text-slate-500">
+              จัดการข้อมูลแผนกในแต่ละสาขา
             </p>
           </div>
 
           <button
             type="button"
             onClick={handleOpenCreate}
-            className="rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white hover:bg-slate-800 transition"
+            className="rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
           >
-            + เพิ่มฝ่าย
+            + เพิ่มแผนก
           </button>
         </div>
       </div>
 
-      {/* ค้นหา */}
-      <div className="bg-white border border-slate-200 rounded-3xl p-4 shadow-sm">
+      <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
         <input
           type="text"
-          placeholder="ค้นหารหัสฝ่าย / ชื่อฝ่าย / สังกัด"
+          placeholder="ค้นหารหัสแผนก / ชื่อแผนก / สาขา"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-slate-500 focus:ring-4 focus:ring-slate-100"
@@ -310,14 +308,15 @@ export default function DepartmentsPage() {
       ) : null}
 
       {/* Table */}
-      <div className="bg-white border border-slate-200 rounded-3xl shadow-sm overflow-hidden">
+      <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead className="bg-slate-100 text-slate-600">
               <tr>
-                <th className="px-6 py-4 text-left font-semibold">รหัสฝ่าย</th>
-                <th className="px-6 py-4 text-left font-semibold">ชื่อฝ่าย</th>
-                <th className="px-6 py-4 text-left font-semibold">สังกัด</th>
+                <th className="px-6 py-4 text-left font-semibold">ลำดับ</th>
+                <th className="px-6 py-4 text-left font-semibold">รหัสแผนก</th>
+                <th className="px-6 py-4 text-left font-semibold">ชื่อแผนก</th>
+                <th className="px-6 py-4 text-left font-semibold">สาขาที่ดูแล</th>
                 <th className="px-6 py-4 text-left font-semibold">สถานะ</th>
                 <th className="px-6 py-4 text-right font-semibold">จัดการ</th>
               </tr>
@@ -325,7 +324,7 @@ export default function DepartmentsPage() {
 
             <tbody>
               {loading ? (
-                [...Array(departments.length)].map((_, i) => (
+                [...Array(5)].map((_, i) => (
                   <tr key={i} className="border-t border-slate-200">
                     <td className="px-6 py-4">
                       <div className="h-3.5 w-16 animate-pulse rounded-md bg-slate-200" />
@@ -348,11 +347,15 @@ export default function DepartmentsPage() {
                   </tr>
                 ))
               ) : departments.length > 0 ? (
-                departments.map((department) => (
+                departments.map((department,index) => (
                   <tr
                     key={department.id}
                     className="border-t border-slate-200 hover:bg-slate-50"
                   >
+                    <td className="px-6 py-4 font-medium text-slate-700">
+                      {index + 1}
+                    </td>
+
                     <td className="px-6 py-4 font-medium text-slate-700">
                       {department.code}
                     </td>
@@ -362,9 +365,11 @@ export default function DepartmentsPage() {
                     </td>
 
                     <td className="px-6 py-4 text-slate-600">
-                      {department.branch_names?.length
-                        ?  <BranchBadges names={department.branch_names ?? []} />
-                        : "-"}
+                      {department.branch_names?.length ? (
+                        <BranchBadges names={department.branch_names ?? []} />
+                      ) : (
+                        "-"
+                      )}
                     </td>
 
                     <td className="px-6 py-4">
@@ -375,9 +380,7 @@ export default function DepartmentsPage() {
                             : "bg-red-100 text-red-600"
                         }`}
                       >
-                        {department.status === "active"
-                          ? "Active"
-                          : "Inactive"}
+                        {department.status === "active" ? "Active" : "Inactive"}
                       </span>
                     </td>
 
@@ -397,13 +400,11 @@ export default function DepartmentsPage() {
                           disabled={deletingId === department.id}
                           className={`rounded-xl border px-3 py-2 text-xs font-medium ${
                             deletingId === department.id
-                              ? "border-slate-200 text-slate-400 cursor-not-allowed"
+                              ? "cursor-not-allowed border-slate-200 text-slate-400"
                               : "border-red-200 text-red-600 hover:bg-red-50"
                           }`}
                         >
-                          {deletingId === department.id
-                            ? "Deleting..."
-                            : "Delete"}
+                          {deletingId === department.id ? "Deleting..." : "Delete"}
                         </button>
                       </div>
                     </td>
@@ -411,11 +412,8 @@ export default function DepartmentsPage() {
                 ))
               ) : (
                 <tr>
-                  <td
-                    colSpan={5}
-                    className="px-6 py-10 text-center text-slate-400"
-                  >
-                    ไม่พบข้อมูลฝ่าย
+                  <td colSpan={5} className="px-6 py-10 text-center text-slate-400">
+                    ไม่พบข้อมูลแผนก
                   </td>
                 </tr>
               )}
@@ -423,26 +421,23 @@ export default function DepartmentsPage() {
           </table>
         </div>
       </div>
-      
-      {/* Modal */}
+
       {openModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-3xl rounded-3xl bg-white shadow-2xl">
             <div className="border-b border-slate-200 px-6 py-4">
               <h2 className="text-xl font-bold text-slate-800">
-                {editingDepartment ? "แก้ไขฝ่าย" : "เพิ่มฝ่าย"}
+                {editingDepartment ? "แก้ไขแผนก" : "เพิ่มแผนก"}
               </h2>
-              <p className="text-sm text-slate-500 mt-1">
-                {editingDepartment
-                  ? "ปรับปรุงข้อมูลฝ่าย"
-                  : "กรอกข้อมูลฝ่ายใหม่"}
+              <p className="mt-1 text-sm text-slate-500">
+                {editingDepartment ? "ปรับปรุงข้อมูลแผนก" : "กรอกข้อมูลแผนกใหม่"}
               </p>
             </div>
 
             <div className="grid grid-cols-1 gap-5 p-6 md:grid-cols-2">
               <div>
                 <label className="mb-2 block text-sm font-medium text-slate-700">
-                  รหัสฝ่าย
+                  รหัสแผนก
                 </label>
                 <input
                   type="text"
@@ -453,14 +448,14 @@ export default function DepartmentsPage() {
                       code: e.target.value,
                     }))
                   }
-                  placeholder="เช่น HR"
+                  placeholder="เช่น OPS"
                   className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-slate-500 focus:ring-4 focus:ring-slate-100"
                 />
               </div>
 
               <div>
                 <label className="mb-2 block text-sm font-medium text-slate-700">
-                  ชื่อฝ่าย
+                  ชื่อแผนก
                 </label>
                 <input
                   type="text"
@@ -471,14 +466,14 @@ export default function DepartmentsPage() {
                       name: e.target.value,
                     }))
                   }
-                  placeholder="เช่น Human Resources"
+                  placeholder="เช่น Operations"
                   className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-slate-500 focus:ring-4 focus:ring-slate-100"
                 />
               </div>
 
               <div className="md:col-span-2">
                 <label className="mb-2 block text-sm font-medium text-slate-700">
-                  สังกัด
+                  สาขา
                 </label>
 
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
@@ -513,9 +508,7 @@ export default function DepartmentsPage() {
                         );
                       })
                     ) : (
-                      <p className="text-sm text-slate-400">
-                        ยังไม่ได้เลือกสังกัด
-                      </p>
+                      <p className="text-sm text-slate-400">ยังไม่ได้เลือกสาขา</p>
                     )}
                   </div>
 
@@ -540,9 +533,7 @@ export default function DepartmentsPage() {
                                 const value = branch.id;
                                 const nextIds = e.target.checked
                                   ? [...form.branch_ids, value]
-                                  : form.branch_ids.filter(
-                                      (id) => id !== value
-                                    );
+                                  : form.branch_ids.filter((id) => id !== value);
 
                                 setForm((prev) => ({
                                   ...prev,
@@ -574,7 +565,7 @@ export default function DepartmentsPage() {
 
                   <div className="mt-3 flex items-center justify-between">
                     <p className="text-xs text-slate-400">
-                      เลือกได้มากกว่า 1 สังกัด
+                      เลือกได้มากกว่า 1 สาขา
                     </p>
                     <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">
                       เลือกแล้ว {form.branch_ids.length} รายการ
@@ -620,7 +611,7 @@ export default function DepartmentsPage() {
                 disabled={saving}
                 className={`rounded-2xl px-5 py-3 text-sm font-semibold text-white ${
                   saving
-                    ? "bg-slate-400 cursor-not-allowed"
+                    ? "cursor-not-allowed bg-slate-400"
                     : "bg-slate-900 hover:bg-slate-800"
                 }`}
               >

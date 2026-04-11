@@ -6,13 +6,14 @@ import { swalSuccess, swalError, swalConfirm } from "../../components/Swal";
 const initialForm = {
   code: "",
   name: "",
-  level: "",
+  department_id: "",
   status: "active",
 };
 
-export default function PositionsPage() {
+export default function DivisionsPage() {
   const [search, setSearch] = useState("");
-  const [positions, setPositions] = useState([]);
+  const [divisions, setDivisions] = useState([]);
+  const [departments, setDepartments] = useState([]);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -20,17 +21,37 @@ export default function PositionsPage() {
   const [error, setError] = useState("");
 
   const [openModal, setOpenModal] = useState(false);
-  const [editingPosition, setEditingPosition] = useState(null);
+  const [editingDivision, setEditingDivision] = useState(null);
   const [form, setForm] = useState(initialForm);
 
-  const loadPositions = async (keyword = "") => {
+  const loadDepartments = async () => {
+    try {
+      const res = await fetch("/api/admin/departments", {
+        method: "GET",
+        cache: "no-store",
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data?.error || "Load departments failed");
+      }
+
+      setDepartments(data.data || []);
+    } catch (err) {
+      console.error(err);
+      swalError(err.message || "ไม่สามารถโหลดข้อมูลแผนกได้");
+    }
+  };
+
+  const loadDivisions = async (keyword = "") => {
     try {
       setLoading(true);
       setError("");
 
       const url = keyword
-        ? `/api/admin/positions?search=${encodeURIComponent(keyword)}`
-        : "/api/admin/positions";
+        ? `/api/admin/divisions?search=${encodeURIComponent(keyword)}`
+        : "/api/admin/divisions";
 
       const res = await fetch(url, {
         method: "GET",
@@ -40,18 +61,19 @@ export default function PositionsPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data?.error || "Load positions failed");
+        throw new Error(data?.error || "Load divisions failed");
       }
 
-      const mapped = (data.data || []).map((position) => ({
-        id: position.id,
-        code: position.position_code,
-        name: position.position_name,
-        level: position.position_level || "",
-        status: position.status,
+      const mapped = (data.data || []).map((division) => ({
+        id: division.id,
+        code: division.division_code,
+        name: division.division_name,
+        department_id: division.department_id,
+        department_name: division.department_name,
+        status: division.status,
       }));
 
-      setPositions(mapped);
+      setDivisions(mapped);
     } catch (err) {
       console.error(err);
       setError(err.message || "เกิดข้อผิดพลาดในการโหลดข้อมูล");
@@ -61,12 +83,13 @@ export default function PositionsPage() {
   };
 
   useEffect(() => {
-    loadPositions();
+    loadDepartments();
+    loadDivisions();
   }, []);
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      loadPositions(search);
+      loadDivisions(search);
     }, 300);
 
     return () => clearTimeout(timer);
@@ -74,7 +97,7 @@ export default function PositionsPage() {
 
   const resetForm = () => {
     setForm(initialForm);
-    setEditingPosition(null);
+    setEditingDivision(null);
   };
 
   const handleOpenCreate = () => {
@@ -82,14 +105,14 @@ export default function PositionsPage() {
     setOpenModal(true);
   };
 
-  const handleOpenEdit = (position) => {
-    setEditingPosition(position);
+  const handleOpenEdit = (division) => {
+    setEditingDivision(division);
 
     setForm({
-      code: position.code || "",
-      name: position.name || "",
-      level: position.level || "",
-      status: position.status || "active",
+      code: division.code || "",
+      name: division.name || "",
+      department_id: division.department_id || "",
+      status: division.status || "active",
     });
 
     setOpenModal(true);
@@ -102,17 +125,23 @@ export default function PositionsPage() {
 
   const handleSave = async () => {
     if (!form.code.trim() || !form.name.trim()) {
-      swalError("กรุณากรอกรหัสตำแหน่งและชื่อตำแหน่ง");
+      swalError("กรุณากรอกรหัสฝ่ายและชื่อฝ่าย");
+      return;
+    }
+
+    if (!form.department_id) {
+      swalError("กรุณาเลือกแผนก");
       return;
     }
 
     try {
       setSaving(true);
 
-      const isEdit = !!editingPosition;
+      const isEdit = !!editingDivision;
+
       const url = isEdit
-        ? `/api/admin/positions/${editingPosition.id}`
-        : "/api/admin/positions";
+        ? `/api/admin/divisions/${editingDivision.id}`
+        : "/api/admin/divisions";
 
       const method = isEdit ? "PATCH" : "POST";
 
@@ -122,9 +151,9 @@ export default function PositionsPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          position_code: form.code.trim(),
-          position_name: form.name.trim(),
-          position_level: form.level.trim() || null,
+          division_code: form.code.trim(),
+          division_name: form.name.trim(),
+          department_id: form.department_id,
           status: form.status,
         }),
       });
@@ -135,24 +164,26 @@ export default function PositionsPage() {
         throw new Error(data?.error || "Save failed");
       }
 
-      const savedPosition = {
+      const savedDivision = {
         id: data.data.id,
-        code: data.data.position_code,
-        name: data.data.position_name,
-        level: data.data.position_level || "",
+        code: data.data.division_code,
+        name: data.data.division_name,
+        department_id: data.data.department_id,
+        department_name: data.data.department_name,
         status: data.data.status,
       };
 
       if (isEdit) {
-        setPositions((prev) =>
+        setDivisions((prev) =>
           prev.map((item) =>
-            item.id === savedPosition.id ? savedPosition : item
+            item.id === savedDivision.id ? savedDivision : item
           )
         );
-        swalSuccess("อัพเดทข้อมูลตำแหน่งเรียบร้อยแล้ว");
+
+        swalSuccess("อัพเดทข้อมูลฝ่ายเรียบร้อยแล้ว");
       } else {
-        setPositions((prev) => [savedPosition, ...prev]);
-        swalSuccess("บันทึกข้อมูลตำแหน่งเรียบร้อยแล้ว");
+        setDivisions((prev) => [savedDivision, ...prev]);
+        swalSuccess("บันทึกข้อมูลฝ่ายเรียบร้อยแล้ว");
       }
 
       handleCloseModal();
@@ -164,17 +195,17 @@ export default function PositionsPage() {
     }
   };
 
-  const handleDelete = async (position) => {
+  const handleDelete = async (division) => {
     const confirmed = await swalConfirm(
-      `ต้องการลบตำแหน่ง "${position.name}" ใช่หรือไม่?`
+      `ต้องการลบฝ่าย "${division.name}" ใช่หรือไม่?`
     );
 
     if (!confirmed) return;
 
     try {
-      setDeletingId(position.id);
+      setDeletingId(division.id);
 
-      const res = await fetch(`/api/admin/positions/${position.id}`, {
+      const res = await fetch(`/api/admin/divisions/${division.id}`, {
         method: "DELETE",
       });
 
@@ -184,8 +215,11 @@ export default function PositionsPage() {
         throw new Error(data?.error || "Delete failed");
       }
 
-      setPositions((prev) => prev.filter((item) => item.id !== position.id));
-      swalSuccess("ลบข้อมูลตำแหน่งเรียบร้อยแล้ว");
+      setDivisions((prev) =>
+        prev.filter((item) => item.id !== division.id)
+      );
+
+      swalSuccess("ลบข้อมูลฝ่ายเรียบร้อยแล้ว");
     } catch (err) {
       console.error(err);
       swalError(err.message || "เกิดข้อผิดพลาดในการลบข้อมูล");
@@ -199,9 +233,9 @@ export default function PositionsPage() {
       <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-slate-800">ตำแหน่ง</h1>
+            <h1 className="text-2xl font-bold text-slate-800">ฝ่าย</h1>
             <p className="mt-1 text-sm text-slate-500">
-              จัดการข้อมูลตำแหน่งงานกลางขององค์กร
+              จัดการข้อมูลฝ่ายภายใต้แต่ละแผนก
             </p>
           </div>
 
@@ -210,7 +244,7 @@ export default function PositionsPage() {
             onClick={handleOpenCreate}
             className="rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
           >
-            + เพิ่มตำแหน่ง
+            + เพิ่มฝ่าย
           </button>
         </div>
       </div>
@@ -218,7 +252,7 @@ export default function PositionsPage() {
       <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
         <input
           type="text"
-          placeholder="ค้นหารหัสตำแหน่ง / ชื่อตำแหน่ง / ระดับ"
+          placeholder="ค้นหารหัสฝ่าย / ชื่อฝ่าย / แผนก"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-slate-500 focus:ring-4 focus:ring-slate-100"
@@ -236,9 +270,10 @@ export default function PositionsPage() {
           <table className="min-w-full text-sm">
             <thead className="bg-slate-100 text-slate-600">
               <tr>
-                <th className="px-6 py-4 text-left font-semibold">รหัสตำแหน่ง</th>
-                <th className="px-6 py-4 text-left font-semibold">ชื่อตำแหน่ง</th>
-                <th className="px-6 py-4 text-left font-semibold">ระดับ</th>
+                <th className="px-6 py-4 text-left font-semibold">ลำดับ</th>
+                <th className="px-6 py-4 text-left font-semibold">รหัสฝ่าย</th>
+                <th className="px-6 py-4 text-left font-semibold">ชื่อฝ่าย</th>
+                <th className="px-6 py-4 text-left font-semibold">แผนก</th>
                 <th className="px-6 py-4 text-left font-semibold">สถานะ</th>
                 <th className="px-6 py-4 text-right font-semibold">จัดการ</th>
               </tr>
@@ -246,52 +281,46 @@ export default function PositionsPage() {
 
             <tbody>
               {loading ? (
-                [...Array(5)].map((_, i) => (
+                [...Array(divisions.length)].map((_, i) => (
                   <tr key={i} className="border-t border-slate-200">
-                    <td className="px-6 py-4">
-                      <div className="h-3.5 w-24 animate-pulse rounded-md bg-slate-200" />
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="h-3.5 w-40 animate-pulse rounded-md bg-slate-200" />
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="h-3.5 w-24 animate-pulse rounded-md bg-slate-200" />
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="h-6 w-16 animate-pulse rounded-full bg-slate-200" />
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="ml-auto h-8 w-24 animate-pulse rounded-xl bg-slate-200" />
-                    </td>
+                    <td className="px-6 py-4"><div className="h-3.5 w-20 animate-pulse rounded-md bg-slate-200" /></td>
+                    <td className="px-6 py-4"><div className="h-3.5 w-40 animate-pulse rounded-md bg-slate-200" /></td>
+                    <td className="px-6 py-4"><div className="h-3.5 w-32 animate-pulse rounded-md bg-slate-200" /></td>
+                    <td className="px-6 py-4"><div className="h-6 w-16 animate-pulse rounded-full bg-slate-200" /></td>
+                    <td className="px-6 py-4"><div className="ml-auto h-8 w-24 animate-pulse rounded-xl bg-slate-200" /></td>
                   </tr>
                 ))
-              ) : positions.length > 0 ? (
-                positions.map((position) => (
+              ) : divisions.length > 0 ? (
+                divisions.map((division , index) => (
                   <tr
-                    key={position.id}
+                    key={division.id}
                     className="border-t border-slate-200 hover:bg-slate-50"
                   >
                     <td className="px-6 py-4 font-medium text-slate-700">
-                      {position.code}
+                      {index + 1}
+                    </td>
+
+                    <td className="px-6 py-4 font-medium text-slate-700">
+                      {division.code}
                     </td>
 
                     <td className="px-6 py-4 text-slate-700">
-                      {position.name}
+                      {division.name}
                     </td>
 
                     <td className="px-6 py-4 text-slate-600">
-                      {position.level || "-"}
+                      {division.department_name || "-"}
                     </td>
 
                     <td className="px-6 py-4">
                       <span
                         className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
-                          position.status === "active"
+                          division.status === "active"
                             ? "bg-green-100 text-green-700"
                             : "bg-red-100 text-red-600"
                         }`}
                       >
-                        {position.status === "active" ? "Active" : "Inactive"}
+                        {division.status === "active" ? "Active" : "Inactive"}
                       </span>
                     </td>
 
@@ -299,7 +328,7 @@ export default function PositionsPage() {
                       <div className="flex justify-end gap-2">
                         <button
                           type="button"
-                          onClick={() => handleOpenEdit(position)}
+                          onClick={() => handleOpenEdit(division)}
                           className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100"
                         >
                           Edit
@@ -307,15 +336,15 @@ export default function PositionsPage() {
 
                         <button
                           type="button"
-                          onClick={() => handleDelete(position)}
-                          disabled={deletingId === position.id}
+                          onClick={() => handleDelete(division)}
+                          disabled={deletingId === division.id}
                           className={`rounded-xl border px-3 py-2 text-xs font-medium ${
-                            deletingId === position.id
+                            deletingId === division.id
                               ? "cursor-not-allowed border-slate-200 text-slate-400"
                               : "border-red-200 text-red-600 hover:bg-red-50"
                           }`}
                         >
-                          {deletingId === position.id ? "Deleting..." : "Delete"}
+                          {deletingId === division.id ? "Deleting..." : "Delete"}
                         </button>
                       </div>
                     </td>
@@ -323,11 +352,8 @@ export default function PositionsPage() {
                 ))
               ) : (
                 <tr>
-                  <td
-                    colSpan={5}
-                    className="px-6 py-10 text-center text-slate-400"
-                  >
-                    ไม่พบข้อมูลตำแหน่ง
+                  <td colSpan={5} className="px-6 py-10 text-center text-slate-400">
+                    ไม่พบข้อมูลฝ่าย
                   </td>
                 </tr>
               )}
@@ -341,14 +367,14 @@ export default function PositionsPage() {
           <div className="w-full max-w-2xl rounded-3xl bg-white shadow-2xl">
             <div className="border-b border-slate-200 px-6 py-4">
               <h2 className="text-xl font-bold text-slate-800">
-                {editingPosition ? "แก้ไขตำแหน่ง" : "เพิ่มตำแหน่ง"}
+                {editingDivision ? "แก้ไขฝ่าย" : "เพิ่มฝ่าย"}
               </h2>
             </div>
 
             <div className="grid grid-cols-1 gap-5 p-6 md:grid-cols-2">
               <div>
                 <label className="mb-2 block text-sm font-medium text-slate-700">
-                  รหัสตำแหน่ง
+                  รหัสฝ่าย
                 </label>
                 <input
                   type="text"
@@ -356,14 +382,14 @@ export default function PositionsPage() {
                   onChange={(e) =>
                     setForm((prev) => ({ ...prev, code: e.target.value }))
                   }
-                  placeholder="เช่น GRA"
+                  placeholder="เช่น FIN"
                   className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-slate-500 focus:ring-4 focus:ring-slate-100"
                 />
               </div>
 
               <div>
                 <label className="mb-2 block text-sm font-medium text-slate-700">
-                  ชื่อตำแหน่ง
+                  ชื่อฝ่าย
                 </label>
                 <input
                   type="text"
@@ -371,24 +397,32 @@ export default function PositionsPage() {
                   onChange={(e) =>
                     setForm((prev) => ({ ...prev, name: e.target.value }))
                   }
-                  placeholder="เช่น Guest Relation Agent"
+                  placeholder="เช่น Finance"
                   className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-slate-500 focus:ring-4 focus:ring-slate-100"
                 />
               </div>
 
               <div className="md:col-span-2">
                 <label className="mb-2 block text-sm font-medium text-slate-700">
-                  ระดับตำแหน่ง
+                  แผนก
                 </label>
-                <input
-                  type="text"
-                  value={form.level}
+                <select
+                  value={form.department_id}
                   onChange={(e) =>
-                    setForm((prev) => ({ ...prev, level: e.target.value }))
+                    setForm((prev) => ({
+                      ...prev,
+                      department_id: e.target.value,
+                    }))
                   }
-                  placeholder="เช่น Junior / Senior / Supervisor / Manager"
                   className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-slate-500 focus:ring-4 focus:ring-slate-100"
-                />
+                >
+                  <option value="">เลือกแผนก</option>
+                  {departments.map((department) => (
+                    <option key={department.id} value={department.id}>
+                      {department.department_name}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div className="md:col-span-2">
@@ -428,7 +462,7 @@ export default function PositionsPage() {
                     : "bg-slate-900 hover:bg-slate-800"
                 }`}
               >
-                {saving ? "Saving..." : editingPosition ? "Update" : "Save"}
+                {saving ? "Saving..." : editingDivision ? "Update" : "Save"}
               </button>
             </div>
           </div>
@@ -437,25 +471,3 @@ export default function PositionsPage() {
     </div>
   );
 }
-
-
-
-/*****
- * 
- * 
- * 
- * 
- * 
- * 
- * 
- * 
- * 
- * 
- * 
- * 
- * 
- * 
- * 
- * 
- * 
- */

@@ -229,7 +229,7 @@ export default function BranchesPage() {
       <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-slate-800">สังกัด</h1>
+            <h1 className="text-2xl font-bold text-slate-800">สาขา</h1>
             <p className="text-sm text-slate-500 mt-1">
               จัดการข้อมูลสังกัดของพนักงานในระบบ Employee Master
             </p>
@@ -240,7 +240,7 @@ export default function BranchesPage() {
             onClick={handleOpenCreate}
             className="rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white hover:bg-slate-800 transition"
           >
-            + เพิ่มสังกัด
+            + เพิ่มสาขา
           </button>
         </div>
       </div>
@@ -268,8 +268,9 @@ export default function BranchesPage() {
           <table className="min-w-full text-sm">
             <thead className="bg-slate-100 text-slate-600">
               <tr>
+                <th className="px-6 py-4 text-left font-semibold">ลำดับ</th>
                 <th className="px-6 py-4 text-left font-semibold">รหัส</th>
-                <th className="px-6 py-4 text-left font-semibold">สังกัด</th>
+                <th className="px-6 py-4 text-left font-semibold">ชื่อสาขา</th>
                 <th className="px-6 py-4 text-left font-semibold">บริษัท</th>
                 <th className="px-6 py-4 text-left font-semibold">เบอร์โทร</th>
                 <th className="px-6 py-4 text-left font-semibold">สถานะ</th>
@@ -307,11 +308,15 @@ export default function BranchesPage() {
                   ))}
                 </>
               ) : branches.length > 0 ? (
-                branches.map((branch) => (
+                branches.map((branch,index) => (
                   <tr
                     key={branch.id}
                     className="border-t border-slate-200 hover:bg-slate-50"
                   >
+                    <td className="px-6 py-4 font-medium text-slate-700">
+                      {index + 1}
+                    </td>
+
                     <td className="px-6 py-4 font-medium text-slate-700">
                       {branch.code}
                     </td>

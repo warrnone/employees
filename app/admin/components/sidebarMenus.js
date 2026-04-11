@@ -1,4 +1,4 @@
-import { DashboardOutlined,ShopOutlined,ApartmentOutlined,TeamOutlined,UserOutlined,BankOutlined,SolutionOutlined,IdcardOutlined,SafetyOutlined,KeyOutlined,UsergroupAddOutlined,} from "@ant-design/icons";
+import { DashboardOutlined,ShopOutlined,ApartmentOutlined,ClusterOutlined,TeamOutlined,UserOutlined,BankOutlined,SolutionOutlined,IdcardOutlined,SafetyOutlined,KeyOutlined,UsergroupAddOutlined,} from "@ant-design/icons";
 
 export const sidebarMenus = [
   {
@@ -20,17 +20,22 @@ export const sidebarMenus = [
         icon: <ShopOutlined  />,
       },
       {
-        label: "สังกัด",
+        label: "สาขา",
         href: "/admin/branches",
         icon: <BankOutlined />,
       },
       {
-        label: "ฝ่าย/แผนก",
+        label: "แผนก",
         href: "/admin/departments",
         icon: <ApartmentOutlined />,
       },
       {
-        label: "หน่วย",
+        label: "ฝ่าย",
+        href: "/admin/divisions",
+        icon: <ClusterOutlined />,
+      },
+      {
+        label: "หน่วยงาน",
         href: "/admin/units",
         icon: <TeamOutlined />,
       },

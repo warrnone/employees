@@ -1,25 +1,20 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import {
-  swalConfirm,
-  swalError,
-  swalSuccess,
-} from "../../components/Swal";
+import { useEffect, useState } from "react";
+import { swalSuccess, swalError, swalConfirm } from "../../components/Swal";
+import { Select } from "antd";
 
 const initialForm = {
   code: "",
   name: "",
-  department_id: "",
-  parent_unit_id: "",
-  unit_level: "division",
+  division_id: "",
   status: "active",
 };
 
 export default function UnitsPage() {
   const [search, setSearch] = useState("");
   const [units, setUnits] = useState([]);
-  const [departments, setDepartments] = useState([]);
+  const [divisions, setDivisions] = useState([]);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -30,9 +25,9 @@ export default function UnitsPage() {
   const [editingUnit, setEditingUnit] = useState(null);
   const [form, setForm] = useState(initialForm);
 
-  const loadDepartments = async () => {
+  const loadDivisions = async () => {
     try {
-      const res = await fetch("/api/admin/departments", {
+      const res = await fetch("/api/admin/divisions", {
         method: "GET",
         cache: "no-store",
       });
@@ -40,10 +35,10 @@ export default function UnitsPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data?.error || "Load departments failed");
+        throw new Error(data?.error || "Load divisions failed");
       }
 
-      setDepartments(data.data || []);
+      setDivisions(data.data || []);
     } catch (err) {
       console.error(err);
       swalError(err.message || "ไม่สามารถโหลดข้อมูลฝ่ายได้");
@@ -70,7 +65,17 @@ export default function UnitsPage() {
         throw new Error(data?.error || "Load units failed");
       }
 
-      setUnits(data.data || []);
+      const mapped = (data.data || []).map((unit) => ({
+        id: unit.id,
+        code: unit.unit_code,
+        name: unit.unit_name,
+        division_id: unit.division_id,
+        division_name: unit.division_name,
+        department_name: unit.department_name,
+        status: unit.status,
+      }));
+
+      setUnits(mapped);
     } catch (err) {
       console.error(err);
       setError(err.message || "เกิดข้อผิดพลาดในการโหลดข้อมูล");
@@ -80,7 +85,7 @@ export default function UnitsPage() {
   };
 
   useEffect(() => {
-    loadDepartments();
+    loadDivisions();
     loadUnits();
   }, []);
 
@@ -102,34 +107,23 @@ export default function UnitsPage() {
     setOpenModal(true);
   };
 
-  const handleCloseModal = () => {
-    resetForm();
-    setOpenModal(false);
-  };
-
   const handleOpenEdit = (unit) => {
     setEditingUnit(unit);
 
     setForm({
-      code: unit.unit_code || "",
-      name: unit.unit_name || "",
-      department_id: unit.department_id || "",
-      parent_unit_id: unit.parent_unit_id || "",
-      unit_level: unit.unit_level || "division",
+      code: unit.code || "",
+      name: unit.name || "",
+      division_id: unit.division_id || "",
       status: unit.status || "active",
     });
 
     setOpenModal(true);
   };
 
-  const availableParentUnits = useMemo(() => {
-    return units.filter(
-      (unit) =>
-        unit.department_id === form.department_id &&
-        unit.unit_level === "division" &&
-        unit.id !== editingUnit?.id
-    );
-  }, [units, form.department_id, editingUnit]);
+  const handleCloseModal = () => {
+    resetForm();
+    setOpenModal(false);
+  };
 
   const handleSave = async () => {
     if (!form.code.trim() || !form.name.trim()) {
@@ -137,13 +131,8 @@ export default function UnitsPage() {
       return;
     }
 
-    if (!form.department_id) {
-      swalError("กรุณาเลือกฝ่าย / แผนก");
-      return;
-    }
-
-    if (form.unit_level === "unit" && !form.parent_unit_id) {
-      swalError("กรุณาเลือกหน่วยหลัก");
+    if (!form.division_id) {
+      swalError("กรุณาเลือกฝ่าย");
       return;
     }
 
@@ -158,24 +147,17 @@ export default function UnitsPage() {
 
       const method = isEdit ? "PATCH" : "POST";
 
-      const payload = {
-        unit_code: form.code.trim(),
-        unit_name: form.name.trim(),
-        department_id: form.department_id,
-        parent_unit_id:
-          form.unit_level === "division"
-            ? null
-            : form.parent_unit_id || null,
-        unit_level: form.unit_level,
-        status: form.status,
-      };
-
       const res = await fetch(url, {
         method,
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          unit_code: form.code.trim(),
+          unit_name: form.name.trim(),
+          division_id: form.division_id,
+          status: form.status,
+        }),
       });
 
       const data = await res.json();
@@ -184,17 +166,30 @@ export default function UnitsPage() {
         throw new Error(data?.error || "Save failed");
       }
 
-      swalSuccess(
-        isEdit
-          ? "อัพเดทข้อมูลหน่วยเรียบร้อยแล้ว"
-          : "เพิ่มข้อมูลหน่วยเรียบร้อยแล้ว"
-      );
+      const savedUnit = {
+        id: data.data.id,
+        code: data.data.unit_code,
+        name: data.data.unit_name,
+        division_id: data.data.division_id,
+        division_name: data.data.division_name,
+        department_name: data.data.department_name,
+        status: data.data.status,
+      };
+
+      if (isEdit) {
+        setUnits((prev) =>
+          prev.map((item) => (item.id === savedUnit.id ? savedUnit : item))
+        );
+        swalSuccess("อัพเดทข้อมูลหน่วยเรียบร้อยแล้ว");
+      } else {
+        setUnits((prev) => [savedUnit, ...prev]);
+        swalSuccess("บันทึกข้อมูลหน่วยเรียบร้อยแล้ว");
+      }
 
       handleCloseModal();
-      loadUnits(search);
     } catch (err) {
       console.error(err);
-      swalError(err.message || "เกิดข้อผิดพลาดในการบันทึกข้อมูล");
+      swalError(err.message || "เกิดข้อผิดพลาดในการบันทึก");
     } finally {
       setSaving(false);
     }
@@ -202,7 +197,7 @@ export default function UnitsPage() {
 
   const handleDelete = async (unit) => {
     const confirmed = await swalConfirm(
-      `ต้องการลบหน่วย ${unit.unit_name} ใช่หรือไม่?`
+      `ต้องการลบหน่วย "${unit.name}" ใช่หรือไม่?`
     );
 
     if (!confirmed) return;
@@ -220,8 +215,8 @@ export default function UnitsPage() {
         throw new Error(data?.error || "Delete failed");
       }
 
-      swalSuccess("ลบข้อมูลเรียบร้อยแล้ว");
-      loadUnits(search);
+      setUnits((prev) => prev.filter((item) => item.id !== unit.id));
+      swalSuccess("ลบข้อมูลหน่วยเรียบร้อยแล้ว");
     } catch (err) {
       console.error(err);
       swalError(err.message || "เกิดข้อผิดพลาดในการลบข้อมูล");
@@ -232,29 +227,29 @@ export default function UnitsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm">
+      <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-slate-800">หน่วย</h1>
-            <p className="text-sm text-slate-500 mt-1">
-              จัดการข้อมูล Division และ Unit ภายในแต่ละฝ่าย
+            <h1 className="text-2xl font-bold text-slate-800">หน่วยงาน</h1>
+            <p className="mt-1 text-sm text-slate-500">
+              จัดการข้อมูลหน่วยภายใต้แต่ละฝ่าย
             </p>
           </div>
 
           <button
             type="button"
             onClick={handleOpenCreate}
-            className="rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white hover:bg-slate-800 transition"
+            className="rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
           >
             + เพิ่มหน่วย
           </button>
         </div>
       </div>
 
-      <div className="bg-white border border-slate-200 rounded-3xl p-4 shadow-sm">
+      <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
         <input
           type="text"
-          placeholder="ค้นหารหัสหน่วย / ชื่อหน่วย / ฝ่าย"
+          placeholder="ค้นหารหัสหน่วย / ชื่อหน่วย / ฝ่าย / แผนก"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-slate-500 focus:ring-4 focus:ring-slate-100"
@@ -267,63 +262,69 @@ export default function UnitsPage() {
         </div>
       ) : null}
 
-      <div className="bg-white border border-slate-200 rounded-3xl shadow-sm overflow-hidden">
+      <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead className="bg-slate-100 text-slate-600">
               <tr>
-                <th className="px-6 py-4 text-left">รหัสหน่วย</th>
-                <th className="px-6 py-4 text-left">ชื่อหน่วย</th>
-                <th className="px-6 py-4 text-left">ประเภท</th>
-                <th className="px-6 py-4 text-left">ฝ่าย / แผนก</th>
-                <th className="px-6 py-4 text-left">หน่วยหลัก</th>
-                <th className="px-6 py-4 text-left">สถานะ</th>
-                <th className="px-6 py-4 text-right">จัดการ</th>
+                <th className="px-6 py-4 text-left font-semibold">ลำดับ</th>
+                <th className="px-6 py-4 text-left font-semibold">รหัสหน่วย</th>
+                <th className="px-6 py-4 text-left font-semibold">ชื่อหน่วยงาน</th>
+                <th className="px-6 py-4 text-left font-semibold">ฝ่าย</th>
+                <th className="px-6 py-4 text-left font-semibold">แผนก</th>
+                <th className="px-6 py-4 text-left font-semibold">สถานะ</th>
+                <th className="px-6 py-4 text-right font-semibold">จัดการ</th>
               </tr>
             </thead>
 
             <tbody>
               {loading ? (
-                [...Array(5)].map((_, i) => (
+                [...Array(units.length)].map((_, i) => (
                   <tr key={i} className="border-t border-slate-200">
-                    <td className="px-6 py-4"><div className="h-4 w-20 animate-pulse rounded bg-slate-200" /></td>
-                    <td className="px-6 py-4"><div className="h-4 w-40 animate-pulse rounded bg-slate-200" /></td>
-                    <td className="px-6 py-4"><div className="h-6 w-20 animate-pulse rounded-full bg-slate-200" /></td>
-                    <td className="px-6 py-4"><div className="h-4 w-32 animate-pulse rounded bg-slate-200" /></td>
-                    <td className="px-6 py-4"><div className="h-4 w-24 animate-pulse rounded bg-slate-200" /></td>
-                    <td className="px-6 py-4"><div className="h-6 w-20 animate-pulse rounded-full bg-slate-200" /></td>
-                    <td className="px-6 py-4"><div className="ml-auto h-8 w-24 animate-pulse rounded bg-slate-200" /></td>
+                    <td className="px-6 py-4">
+                      <div className="h-3.5 w-20 animate-pulse rounded-md bg-slate-200" />
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="h-3.5 w-40 animate-pulse rounded-md bg-slate-200" />
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="h-3.5 w-32 animate-pulse rounded-md bg-slate-200" />
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="h-3.5 w-32 animate-pulse rounded-md bg-slate-200" />
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="h-6 w-16 animate-pulse rounded-full bg-slate-200" />
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="ml-auto h-8 w-24 animate-pulse rounded-xl bg-slate-200" />
+                    </td>
                   </tr>
                 ))
               ) : units.length > 0 ? (
-                units.map((unit) => (
-                  <tr key={unit.id} className="border-t border-slate-200 hover:bg-slate-50">
+                units.map((unit , index) => (
+                  <tr
+                    key={unit.id}
+                    className="border-t border-slate-200 hover:bg-slate-50"
+                  >
                     <td className="px-6 py-4 font-medium text-slate-700">
-                      {unit.unit_code}
+                      {index + 1}
+                    </td>
+
+                    <td className="px-6 py-4 font-medium text-slate-700">
+                      {unit.code}
                     </td>
 
                     <td className="px-6 py-4 text-slate-700">
-                      {unit.unit_name}
+                      {unit.name}
                     </td>
 
-                    <td className="px-6 py-4">
-                      <span
-                        className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
-                          unit.unit_level === "division"
-                            ? "bg-blue-100 text-blue-700"
-                            : "bg-purple-100 text-purple-700"
-                        }`}
-                      >
-                        {unit.unit_level === "division" ? "Division" : "Unit"}
-                      </span>
+                    <td className="px-6 py-4 text-slate-600">
+                      {unit.division_name || "-"}
                     </td>
 
                     <td className="px-6 py-4 text-slate-600">
                       {unit.department_name || "-"}
-                    </td>
-
-                    <td className="px-6 py-4 text-slate-600">
-                      {unit.parent_unit_name || "-"}
                     </td>
 
                     <td className="px-6 py-4">
@@ -354,7 +355,7 @@ export default function UnitsPage() {
                           disabled={deletingId === unit.id}
                           className={`rounded-xl border px-3 py-2 text-xs font-medium ${
                             deletingId === unit.id
-                              ? "border-slate-200 text-slate-400 cursor-not-allowed"
+                              ? "cursor-not-allowed border-slate-200 text-slate-400"
                               : "border-red-200 text-red-600 hover:bg-red-50"
                           }`}
                         >
@@ -366,7 +367,10 @@ export default function UnitsPage() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={7} className="px-6 py-10 text-center text-slate-400">
+                  <td
+                    colSpan={6}
+                    className="px-6 py-10 text-center text-slate-400"
+                  >
                     ไม่พบข้อมูลหน่วย
                   </td>
                 </tr>
@@ -378,7 +382,7 @@ export default function UnitsPage() {
 
       {openModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-3xl rounded-3xl bg-white shadow-2xl">
+          <div className="w-full max-w-2xl rounded-3xl bg-white shadow-2xl">
             <div className="border-b border-slate-200 px-6 py-4">
               <h2 className="text-xl font-bold text-slate-800">
                 {editingUnit ? "แก้ไขหน่วย" : "เพิ่มหน่วย"}
@@ -396,6 +400,7 @@ export default function UnitsPage() {
                   onChange={(e) =>
                     setForm((prev) => ({ ...prev, code: e.target.value }))
                   }
+                  placeholder="เช่น FRONT"
                   className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-slate-500 focus:ring-4 focus:ring-slate-100"
                 />
               </div>
@@ -410,78 +415,35 @@ export default function UnitsPage() {
                   onChange={(e) =>
                     setForm((prev) => ({ ...prev, name: e.target.value }))
                   }
+                  placeholder="เช่น Front Office"
                   className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-slate-500 focus:ring-4 focus:ring-slate-100"
                 />
               </div>
-
-              <div>
+              
+              {/* ฝ่าย */}
+              <div className="md:col-span-2">
                 <label className="mb-2 block text-sm font-medium text-slate-700">
-                  ประเภทหน่วย
+                  ฝ่าย
                 </label>
-                <select
-                  value={form.unit_level}
-                  onChange={(e) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      unit_level: e.target.value,
-                      parent_unit_id: "",
-                    }))
+                <Select
+                  showSearch
+                  allowClear
+                  placeholder="เลือกฝ่าย"
+                  value={form.division_id || undefined}
+                  onChange={(value) =>
+                    setForm((prev) => ({ ...prev, division_id: value ?? "" }))
                   }
-                  className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-slate-500 focus:ring-4 focus:ring-slate-100"
-                >
-                  <option value="division">Division</option>
-                  <option value="unit">Unit</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="mb-2 block text-sm font-medium text-slate-700">
-                  ฝ่าย / แผนก
-                </label>
-                <select
-                  value={form.department_id}
-                  onChange={(e) =>
-                    setForm((prev) => ({
-                      ...prev,
-                      department_id: e.target.value,
-                      parent_unit_id: "",
-                    }))
+                  filterOption={(input, option) =>
+                    option?.label?.toLowerCase().includes(input.toLowerCase())
                   }
-                  className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-slate-500 focus:ring-4 focus:ring-slate-100"
-                >
-                  <option value="">เลือกฝ่าย</option>
-                  {departments.map((department) => (
-                    <option key={department.id} value={department.id}>
-                      {department.department_name}
-                    </option>
-                  ))}
-                </select>
+                  options={divisions.map((d) => ({
+                    value: d.id,
+                    label: d.division_name + (d.department_name ? ` (${d.department_name})` : ""),
+                  }))}
+                  className="w-full"
+                  size="large"
+                />
               </div>
-
-              {form.unit_level === "unit" && (
-                <div className="md:col-span-2">
-                  <label className="mb-2 block text-sm font-medium text-slate-700">
-                    หน่วยหลัก (Division)
-                  </label>
-                  <select
-                    value={form.parent_unit_id}
-                    onChange={(e) =>
-                      setForm((prev) => ({
-                        ...prev,
-                        parent_unit_id: e.target.value,
-                      }))
-                    }
-                    className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-slate-500 focus:ring-4 focus:ring-slate-100"
-                  >
-                    <option value="">เลือกหน่วยหลัก</option>
-                    {availableParentUnits.map((unit) => (
-                      <option key={unit.id} value={unit.id}>
-                        {unit.unit_name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
 
               <div className="md:col-span-2">
                 <label className="mb-2 block text-sm font-medium text-slate-700">
@@ -504,6 +466,7 @@ export default function UnitsPage() {
               <button
                 type="button"
                 onClick={handleCloseModal}
+                disabled={saving}
                 className="rounded-2xl border border-slate-300 px-5 py-3 text-sm font-medium text-slate-600 hover:bg-slate-100"
               >
                 Cancel
@@ -515,7 +478,7 @@ export default function UnitsPage() {
                 disabled={saving}
                 className={`rounded-2xl px-5 py-3 text-sm font-semibold text-white ${
                   saving
-                    ? "bg-slate-400 cursor-not-allowed"
+                    ? "cursor-not-allowed bg-slate-400"
                     : "bg-slate-900 hover:bg-slate-800"
                 }`}
               >

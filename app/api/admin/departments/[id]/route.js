@@ -9,19 +9,18 @@ export async function PATCH(req, { params }) {
     const department_code = body?.department_code?.trim();
     const department_name = body?.department_name?.trim();
     const branch_ids = Array.isArray(body?.branch_ids) ? body.branch_ids : [];
-    const phone = body?.phone?.trim() || null;
     const status = body?.status || "active";
 
     if (!department_code || !department_name) {
       return NextResponse.json(
-        { error: "กรุณากรอกรหัสฝ่ายและชื่อฝ่าย" },
+        { error: "กรุณากรอกรหัสแผนกและชื่อแผนก" },
         { status: 400 }
       );
     }
 
     if (!branch_ids.length) {
       return NextResponse.json(
-        { error: "กรุณาเลือกสังกัดอย่างน้อย 1 รายการ" },
+        { error: "กรุณาเลือกสาขาอย่างน้อย 1 รายการ" },
         { status: 400 }
       );
     }
@@ -35,7 +34,7 @@ export async function PATCH(req, { params }) {
 
     if (existingDepartment) {
       return NextResponse.json(
-        { error: "รหัสฝ่ายนี้มีอยู่แล้ว" },
+        { error: "รหัสแผนกนี้มีอยู่แล้ว" },
         { status: 400 }
       );
     }
@@ -45,7 +44,6 @@ export async function PATCH(req, { params }) {
       .update({
         department_code,
         department_name,
-        phone,
         status,
         updated_at: new Date().toISOString(),
       })
@@ -78,7 +76,6 @@ export async function PATCH(req, { params }) {
         id,
         department_code,
         department_name,
-        phone,
         status,
         sort_order,
         created_at,
@@ -100,7 +97,7 @@ export async function PATCH(req, { params }) {
 
     return NextResponse.json({
       success: true,
-      message: "อัพเดทข้อมูลฝ่ายสำเร็จ",
+      message: "อัพเดทข้อมูลแผนกสำเร็จ",
       data: {
         id: data.id,
         department_code: data.department_code,
@@ -112,7 +109,6 @@ export async function PATCH(req, { params }) {
         branch_codes: branchRows
           .map((row) => row.branches?.branch_code)
           .filter(Boolean),
-        phone: data.phone || "",
         status: data.status,
         sort_order: data.sort_order,
         created_at: data.created_at,
@@ -122,7 +118,7 @@ export async function PATCH(req, { params }) {
     console.error("UPDATE_DEPARTMENT_ERROR:", error);
 
     return NextResponse.json(
-      { error: "ไม่สามารถอัพเดทข้อมูลฝ่ายได้" },
+      { error: "ไม่สามารถอัพเดทข้อมูลแผนกได้" },
       { status: 500 }
     );
   }
@@ -141,13 +137,13 @@ export async function DELETE(req, { params }) {
 
     return NextResponse.json({
       success: true,
-      message: "ลบข้อมูลฝ่ายสำเร็จ",
+      message: "ลบข้อมูลแผนกสำเร็จ",
     });
   } catch (error) {
     console.error("DELETE_DEPARTMENT_ERROR:", error);
 
     return NextResponse.json(
-      { error: "ไม่สามารถลบข้อมูลฝ่ายได้" },
+      { error: "ไม่สามารถลบข้อมูลแผนกได้" },
       { status: 500 }
     );
   }

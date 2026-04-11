@@ -72,7 +72,7 @@ export async function GET(req) {
     console.error("GET_DEPARTMENTS_ERROR:", error);
 
     return NextResponse.json(
-      { error: "ไม่สามารถดึงข้อมูลฝ่ายได้" },
+      { error: "ไม่สามารถดึงข้อมูลแผนกได้" },
       { status: 500 }
     );
   }
@@ -89,14 +89,14 @@ export async function POST(req) {
 
     if (!department_code || !department_name) {
       return NextResponse.json(
-        { error: "กรุณากรอกรหัสฝ่ายและชื่อฝ่าย" },
+        { error: "กรุณากรอกรหัสแผนกและชื่อแผนก" },
         { status: 400 }
       );
     }
 
     if (!branch_ids.length) {
       return NextResponse.json(
-        { error: "กรุณาเลือกสังกัดอย่างน้อย 1 รายการ" },
+        { error: "กรุณาเลือกสาขาอย่างน้อย 1 รายการ" },
         { status: 400 }
       );
     }
@@ -109,7 +109,7 @@ export async function POST(req) {
 
     if (existingDepartment) {
       return NextResponse.json(
-        { error: "รหัสฝ่ายนี้มีอยู่แล้ว" },
+        { error: "รหัสแผนกนี้มีอยู่แล้ว" },
         { status: 400 }
       );
     }
@@ -174,7 +174,7 @@ export async function POST(req) {
 
     return NextResponse.json({
       success: true,
-      message: "เพิ่มข้อมูลฝ่ายสำเร็จ",
+      message: "เพิ่มข้อมูลแผนกสำเร็จ",
       data: {
         id: fullDepartment.id,
         department_code: fullDepartment.department_code,
@@ -195,7 +195,7 @@ export async function POST(req) {
     console.error("CREATE_DEPARTMENT_ERROR:", error);
 
     return NextResponse.json(
-      { error: "ไม่สามารถบันทึกข้อมูลฝ่ายได้" },
+      { error: "ไม่สามารถบันทึกข้อมูลแผนกได้" },
       { status: 500 }
     );
   }
