@@ -225,6 +225,25 @@ export default function UnitsPage() {
     }
   };
 
+  const divisionOptions = Object.values( divisions.reduce((acc, division) => {
+      const groupName = division.department_name || "ไม่ระบุแผนก";
+
+      if (!acc[groupName]) {
+        acc[groupName] = {
+          label: groupName,
+          options: [],
+        };
+      }
+
+      acc[groupName].options.push({
+        value: division.id,
+        label: division.division_name,
+      });
+
+      return acc;
+    }, {})
+  ).sort((a, b) => a.label.localeCompare(b.label, "th"));
+
   return (
     <div className="space-y-6">
       <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -232,7 +251,7 @@ export default function UnitsPage() {
           <div>
             <h1 className="text-2xl font-bold text-slate-800">หน่วยงาน</h1>
             <p className="mt-1 text-sm text-slate-500">
-              จัดการข้อมูลหน่วยภายใต้แต่ละฝ่าย
+              จัดการข้อมูลหน่วยภายใต้แต่ละฝ่าย จุดปฏิบัติงานจริง
             </p>
           </div>
 
@@ -434,12 +453,9 @@ export default function UnitsPage() {
                     setForm((prev) => ({ ...prev, division_id: value ?? "" }))
                   }
                   filterOption={(input, option) =>
-                    option?.label?.toLowerCase().includes(input.toLowerCase())
+                    (option?.label ?? "").toLowerCase().includes(input.toLowerCase())
                   }
-                  options={divisions.map((d) => ({
-                    value: d.id,
-                    label: d.division_name + (d.department_name ? ` (${d.department_name})` : ""),
-                  }))}
+                  options={divisionOptions}
                   className="w-full"
                   size="large"
                 />
