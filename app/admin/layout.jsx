@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
+import { usePathname, useRouter  } from "next/navigation";
+import { useState , useEffect } from "react";
 import { sidebarMenus } from "./components/sidebarMenus";
 import { swalSuccess, swalError , swalConfirm  } from "../components/Swal";
 import { Button, Tooltip, Tag } from "antd";
@@ -13,6 +13,12 @@ export default function AdminLayout({ children }) {
   const router = useRouter();
   const [loggingOut, setLoggingOut] = useState(false);
   const menus = sidebarMenus;
+  const [openGroup, setOpenGroup] = useState(menus[0]?.title ?? null);
+
+  const handleGroupClick = (title) => {
+    // ถ้าคลิก group เดิมที่เปิดอยู่ → toggle ปิด, ไม่งั้น → เปิด group นี้
+    setOpenGroup((prev) => (prev === title ? null : title));
+  };
 
   const handleLogout = async () => {
     const result = await swalConfirm(
@@ -42,6 +48,13 @@ export default function AdminLayout({ children }) {
     return pathname.startsWith(href);
   };
 
+  useEffect(() => {
+    const activeGroup = menus.find((group) =>
+      group.items.some((item) => isActiveMenu(item.href))
+    );
+    if (activeGroup) setOpenGroup(activeGroup.title);
+  }, [pathname]);
+
   return (
     <div className="min-h-screen bg-slate-100 flex">
 
@@ -62,36 +75,68 @@ export default function AdminLayout({ children }) {
         </div>
 
         {/* Menu */}
-        <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-5">
-          {menus.map((group) => (
-            <div key={group.title}>
-              <p className="px-2 mb-1.5 text-[10px] font-semibold tracking-widest text-slate-500 uppercase">
-                {group.title}
-              </p>
-              <div className="space-y-0.5">
-                {group.items.map((item) => {
-                  const active = isActiveMenu(item.href);
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-all ${
-                        active
-                          ? "bg-[#0f6e56] text-white font-medium"
-                          : "text-slate-400 hover:bg-white/5 hover:text-white"
-                      }`}
+        <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
+          {menus.map((group) => {
+            const isOpen = openGroup === group.title;
+            return (
+              <div key={group.title} className="mb-1">
+
+                {/* Group header — คลิกได้ทุก group */}
+                <button
+                  type="button"
+                  onClick={() => handleGroupClick(group.title)}
+                  className="w-full flex items-center justify-between px-2 py-1.5 rounded-lg
+                            hover:bg-white/5 transition-colors group/header"
+                >
+                  <span className="text-[10px] font-semibold tracking-widest text-slate-500 uppercase">
+                    {group.title}
+                  </span>
+                  <span
+                    className={`text-slate-500 transition-transform duration-250 inline-block
+                                ${isOpen ? "rotate-180" : "rotate-0"}`}
+                  >
+                    <svg
+                      width="12" height="12" viewBox="0 0 10 10"
+                      fill="none" stroke="currentColor"
+                      strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"
                     >
-                      <span className="text-base">{item.icon}</span>
-                      <span>{item.label}</span>
-                      {active && (
-                        <span className="ml-auto w-1.5 h-1.5 rounded-full bg-emerald-300" />
-                      )}
-                    </Link>
-                  );
-                })}
+                      <path d="M2 3.5L5 6.5L8 3.5" />
+                    </svg>
+                  </span>
+                </button>
+
+                {/* Items — accordion slide */}
+                <div
+                  className={`overflow-hidden transition-all duration-300 ease-in-out
+                              ${isOpen ? "max-h-[500px] opacity-100" : "max-h-0 opacity-0"}`}
+                >
+                  <div className="space-y-0.5 pt-0.5">
+                    {group.items.map((item) => {
+                      const active = isActiveMenu(item.href);
+                      return (
+                        <Link
+                          key={item.href}
+                          href={item.href}
+                          className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-all ${
+                            active
+                              ? "bg-[#0f6e56] text-white font-medium"
+                              : "text-slate-400 hover:bg-white/5 hover:text-white"
+                          }`}
+                        >
+                          <span className="text-base">{item.icon}</span>
+                          <span>{item.label}</span>
+                          {active && (
+                            <span className="ml-auto w-1.5 h-1.5 rounded-full bg-emerald-300" />
+                          )}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </div>
+
               </div>
-            </div>
-          ))}
+            );
+          })}
         </nav>
 
         {/* Logout ใน sidebar */}

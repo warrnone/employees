@@ -44,6 +44,11 @@ export const sidebarMenus = [
         href: "/admin/positions",
         icon: <SolutionOutlined />,
       },
+      {
+        label: "ตำแหน่งตามหน่วย",
+        href: "/admin/unit-positions",
+        icon: <ApartmentOutlined />,
+      },
     ],
   },
   {

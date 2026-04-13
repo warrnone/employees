@@ -10,6 +10,20 @@ const initialForm = {
   status: "active",
 };
 
+const positionLevelOptions = [
+  "P2",
+  "P3",
+  "P4",
+  "P5",
+  "P6",
+  "P7",
+  "P8",
+  "P9",
+  "P10",
+  "P11",
+  "P12",
+];
+
 export default function PositionsPage() {
   const [search, setSearch] = useState("");
   const [positions, setPositions] = useState([]);
@@ -375,7 +389,8 @@ export default function PositionsPage() {
                   className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-slate-500 focus:ring-4 focus:ring-slate-100"
                 />
               </div>
-
+              
+              {/* ระดับตำแหน่งง */}
               <div className="md:col-span-2">
                 <label className="mb-2 block text-sm font-medium text-slate-700">
                   ระดับตำแหน่ง
@@ -389,6 +404,45 @@ export default function PositionsPage() {
                   placeholder="เช่น Junior / Senior / Supervisor / Manager"
                   className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-slate-500 focus:ring-4 focus:ring-slate-100"
                 />
+                <select
+                  value={form.level}
+                  onChange={(e) =>
+                    setForm((prev) => ({ ...prev, level: e.target.value }))
+                  }
+                  className="mt-3 w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-slate-500 focus:ring-4 focus:ring-slate-100"
+                >
+                  <option value="">เลือกระดับตำแหน่ง</option>
+
+                  {positionLevelOptions.map((level) => (
+                    <option key={level} value={level}>
+                      {level}
+                    </option>
+                  ))}
+                </select>
+
+                <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-0.5 rounded-xl bg-slate-50 px-3 py-2.5">
+                  {[
+                    ["P1", "Entry Level"],
+                    ["P2", "Staff / Junior"],
+                    ["P3", "Senior Staff"],
+                    ["P4", "Specialist / Supervisor"],
+                    ["P5", "Assistant Manager"],
+                    ["P6", "Manager"],
+                    ["P7", "Senior Manager"],
+                    ["P8", "Assistant Director"],
+                    ["P9", "Director"],
+                    ["P10", "Senior Director / AVP"],
+                    ["P11", "VP / GM"],
+                    ["P12", "MD / President / CEO"],
+                  ].map(([code, label]) => (
+                    <div key={code} className="flex items-center gap-1.5 py-0.5">
+                      <span className="w-8 shrink-0 text-xs font-semibold text-slate-500">
+                        {code}
+                      </span>
+                      <span className="text-xs text-slate-400">{label}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
 
               <div className="md:col-span-2">
