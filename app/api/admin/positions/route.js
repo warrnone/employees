@@ -15,6 +15,7 @@ export async function GET(req) {
         id,
         position_code,
         position_name,
+        position_group,
         position_level,
         status,
         sort_order,
@@ -29,6 +30,7 @@ export async function GET(req) {
       id: item.id,
       position_code: item.position_code,
       position_name: item.position_name,
+      position_group: item.position_group,
       position_level: item.position_level,
       status: item.status,
       sort_order: item.sort_order,
@@ -40,6 +42,7 @@ export async function GET(req) {
           return (
             item.position_code?.toLowerCase().includes(search) ||
             item.position_name?.toLowerCase().includes(search) ||
+            item.position_group?.toLowerCase().includes(search) ||
             item.position_level?.toLowerCase().includes(search)
           );
         })
@@ -71,6 +74,7 @@ export async function POST(req) {
 
     const position_code = body?.position_code?.trim();
     const position_name = body?.position_name?.trim();
+    const position_group = body?.position_group?.trim() || null;
     const position_level = body?.position_level?.trim() || null;
     const status = body?.status || "active";
 
@@ -106,6 +110,7 @@ export async function POST(req) {
         {
           position_code,
           position_name,
+          position_group,
           position_level,
           status,
         },
@@ -114,6 +119,7 @@ export async function POST(req) {
         id,
         position_code,
         position_name,
+        position_group,
         position_level,
         status,
         sort_order,

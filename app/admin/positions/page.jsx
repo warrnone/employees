@@ -6,6 +6,7 @@ import { swalSuccess, swalError, swalConfirm } from "../../components/Swal";
 const initialForm = {
   code: "",
   name: "",
+  group: "",
   level: "",
   status: "active",
 };
@@ -61,6 +62,7 @@ export default function PositionsPage() {
         id: position.id,
         code: position.position_code,
         name: position.position_name,
+        group: position.position_group || "",
         level: position.position_level || "",
         status: position.status,
       }));
@@ -102,6 +104,7 @@ export default function PositionsPage() {
     setForm({
       code: position.code || "",
       name: position.name || "",
+      group: position.group || "",
       level: position.level || "",
       status: position.status || "active",
     });
@@ -117,6 +120,11 @@ export default function PositionsPage() {
   const handleSave = async () => {
     if (!form.code.trim() || !form.name.trim()) {
       swalError("กรุณากรอกรหัสตำแหน่งและชื่อตำแหน่ง");
+      return;
+    }
+
+    if (!form.level || !form.group.trim()) {
+      swalError("กรุณากรอกระดับตำแหน่งและเลือกระดับตำแหน่ง");
       return;
     }
 
@@ -138,6 +146,7 @@ export default function PositionsPage() {
         body: JSON.stringify({
           position_code: form.code.trim(),
           position_name: form.name.trim(),
+          position_group: form.group.trim() || null,
           position_level: form.level.trim() || null,
           status: form.status,
         }),
@@ -153,6 +162,7 @@ export default function PositionsPage() {
         id: data.data.id,
         code: data.data.position_code,
         name: data.data.position_name,
+        group: data.data.position_group || "",
         level: data.data.position_level || "",
         status: data.data.status,
       };
@@ -250,8 +260,10 @@ export default function PositionsPage() {
           <table className="min-w-full text-sm">
             <thead className="bg-slate-100 text-slate-600">
               <tr>
+                <th className="px-6 py-4 text-left font-semibold">ลำดับ</th>
                 <th className="px-6 py-4 text-left font-semibold">รหัสตำแหน่ง</th>
                 <th className="px-6 py-4 text-left font-semibold">ชื่อตำแหน่ง</th>
+                <th className="px-6 py-4 text-left font-semibold">กลุ่มตำแหน่ง</th>
                 <th className="px-6 py-4 text-left font-semibold">ระดับ</th>
                 <th className="px-6 py-4 text-left font-semibold">สถานะ</th>
                 <th className="px-6 py-4 text-right font-semibold">จัดการ</th>
@@ -260,7 +272,7 @@ export default function PositionsPage() {
 
             <tbody>
               {loading ? (
-                [...Array(5)].map((_, i) => (
+                [...Array(positions.length)].map((_, i) => (
                   <tr key={i} className="border-t border-slate-200">
                     <td className="px-6 py-4">
                       <div className="h-3.5 w-24 animate-pulse rounded-md bg-slate-200" />
@@ -280,17 +292,25 @@ export default function PositionsPage() {
                   </tr>
                 ))
               ) : positions.length > 0 ? (
-                positions.map((position) => (
+                positions.map((position,index) => (
                   <tr
                     key={position.id}
                     className="border-t border-slate-200 hover:bg-slate-50"
                   >
+                    <td className="px-6 py-4 font-medium text-slate-700">
+                      {index + 1}
+                    </td>
+
                     <td className="px-6 py-4 font-medium text-slate-700">
                       {position.code}
                     </td>
 
                     <td className="px-6 py-4 text-slate-700">
                       {position.name}
+                    </td>
+
+                    <td className="px-6 py-4 text-slate-600">
+                      {position.group || "-"}
                     </td>
 
                     <td className="px-6 py-4 text-slate-600">
@@ -397,9 +417,9 @@ export default function PositionsPage() {
                 </label>
                 <input
                   type="text"
-                  value={form.level}
+                  value={form.group}
                   onChange={(e) =>
-                    setForm((prev) => ({ ...prev, level: e.target.value }))
+                    setForm((prev) => ({ ...prev, group: e.target.value }))
                   }
                   placeholder="เช่น Junior / Senior / Supervisor / Manager"
                   className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-slate-500 focus:ring-4 focus:ring-slate-100"
@@ -422,7 +442,6 @@ export default function PositionsPage() {
 
                 <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-0.5 rounded-xl bg-slate-50 px-3 py-2.5">
                   {[
-                    ["P1", "Entry Level"],
                     ["P2", "Staff / Junior"],
                     ["P3", "Senior Staff"],
                     ["P4", "Specialist / Supervisor"],

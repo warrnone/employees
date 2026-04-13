@@ -317,7 +317,7 @@ export default function UnitPositionsPage() {
 
             <tbody>
               {loading ? (
-                [...Array(5)].map((_, i) => (
+                [...Array(rows.length)].map((_, i) => (
                   <tr key={i} className="border-t border-slate-200">
                     <td className="px-6 py-4"><div className="h-4 w-10 animate-pulse rounded bg-slate-200" /></td>
                     <td className="px-6 py-4"><div className="h-4 w-36 animate-pulse rounded bg-slate-200" /></td>

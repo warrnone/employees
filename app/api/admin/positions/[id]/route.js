@@ -11,6 +11,7 @@ export async function PATCH(req, { params }) {
 
     const position_code = body?.position_code?.trim();
     const position_name = body?.position_name?.trim();
+    const position_group = body?.position_group?.trim() || null;
     const position_level = body?.position_level?.trim() || null;
     const status = body?.status || "active";
 
@@ -46,6 +47,7 @@ export async function PATCH(req, { params }) {
       .update({
         position_code,
         position_name,
+        position_group,
         position_level,
         status,
         updated_at: new Date().toISOString(),
@@ -60,6 +62,7 @@ export async function PATCH(req, { params }) {
         id,
         position_code,
         position_name,
+        position_group,
         position_level,
         status,
         sort_order,
