@@ -1,74 +1,190 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
+import { swalSuccess, swalError, swalConfirm } from "../../components/Swal";
+
+const initialForm = {
+  type_code: "",
+  type_name: "",
+  status: "active",
+};
 
 export default function EmploymentTypesPage() {
   const [search, setSearch] = useState("");
+  const [employmentTypes, setEmploymentTypes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState("");
+  const [error, setError] = useState("");
 
-  const [employmentTypes, setEmploymentTypes] = useState([
-    {
-      id: 1,
-      type_code: "FULLTIME",
-      type_name: "พนักงานประจำ",
-      status: "active",
-    },
-    {
-      id: 2,
-      type_code: "CONTRACT",
-      type_name: "พนักงานสัญญาจ้าง",
-      status: "active",
-    },
-    {
-      id: 3,
-      type_code: "DAILY",
-      type_name: "พนักงานรายวัน",
-      status: "inactive",
-    },
-  ]);
-
-  const [form, setForm] = useState({
-    type_code: "",
-    type_name: "",
-    status: "active",
-  });
-
+  const [form, setForm] = useState(initialForm);
   const [openModal, setOpenModal] = useState(false);
+  const [editingEmploymentType, setEditingEmploymentType] = useState(null);
 
-  const filteredEmploymentTypes = useMemo(() => {
-    const keyword = search.toLowerCase();
+  const loadEmploymentTypes = async (keyword = "") => {
+    try {
+      setLoading(true);
+      setError("");
 
-    return employmentTypes.filter((item) => {
-      return (
-        item.type_code.toLowerCase().includes(keyword) ||
-        item.type_name.toLowerCase().includes(keyword)
-      );
-    });
-  }, [employmentTypes, search]);
+      const url = keyword
+        ? `/api/admin/employment-types?search=${encodeURIComponent(keyword)}`
+        : "/api/admin/employment-types";
 
-  const handleCreate = () => {
-    if (!form.type_code || !form.type_name) return;
+      const res = await fetch(url, {
+        method: "GET",
+        cache: "no-store",
+      });
 
-    const newItem = {
-      id: Date.now(),
-      type_code: form.type_code,
-      type_name: form.type_name,
-      status: form.status,
-    };
+      const data = await res.json();
 
-    setEmploymentTypes((prev) => [newItem, ...prev]);
+      if (!res.ok) {
+        throw new Error(data?.error || "Load employment types failed");
+      }
 
+      const mapped = (data.data || []).map((item) => ({
+        id: item.id,
+        type_code: item.type_code,
+        type_name: item.type_name,
+        status: item.status,
+      }));
+
+      setEmploymentTypes(mapped);
+    } catch (err) {
+      console.error(err);
+      setError(err.message || "เกิดข้อผิดพลาดในการโหลดข้อมูล");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadEmploymentTypes();
+  }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      loadEmploymentTypes(search);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  const resetForm = () => {
+    setForm(initialForm);
+    setEditingEmploymentType(null);
+  };
+
+  const handleOpenCreate = () => {
+    resetForm();
+    setOpenModal(true);
+  };
+
+  const handleOpenEdit = (item) => {
+    setEditingEmploymentType(item);
     setForm({
-      type_code: "",
-      type_name: "",
-      status: "active",
+      type_code: item.type_code || "",
+      type_name: item.type_name || "",
+      status: item.status || "active",
     });
+    setOpenModal(true);
+  };
 
+  const handleCloseModal = () => {
+    resetForm();
     setOpenModal(false);
+  };
+
+  const handleSave = async () => {
+    if (!form.type_code.trim() || !form.type_name.trim()) {
+      swalError("กรุณากรอกรหัสประเภทการจ้างและชื่อประเภทการจ้าง");
+      return;
+    }
+
+    try {
+      setSaving(true);
+
+      const isEdit = !!editingEmploymentType;
+      const url = isEdit
+        ? `/api/admin/employment-types/${editingEmploymentType.id}`
+        : "/api/admin/employment-types";
+      const method = isEdit ? "PATCH" : "POST";
+
+      const res = await fetch(url, {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          type_code: form.type_code.trim(),
+          type_name: form.type_name.trim(),
+          status: form.status,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data?.error || "Save failed");
+      }
+
+      const savedItem = {
+        id: data.data.id,
+        type_code: data.data.type_code,
+        type_name: data.data.type_name,
+        status: data.data.status,
+      };
+
+      if (isEdit) {
+        setEmploymentTypes((prev) =>
+          prev.map((item) => (item.id === savedItem.id ? savedItem : item))
+        );
+        swalSuccess("อัพเดทประเภทการจ้างเรียบร้อยแล้ว");
+      } else {
+        setEmploymentTypes((prev) => [savedItem, ...prev]);
+        swalSuccess("บันทึกประเภทการจ้างเรียบร้อยแล้ว");
+      }
+
+      handleCloseModal();
+    } catch (err) {
+      console.error(err);
+      swalError(err.message || "เกิดข้อผิดพลาดในการบันทึก");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async (item) => {
+    const confirmed = await swalConfirm(
+      `ต้องการลบประเภทการจ้าง "${item.type_name}" ใช่หรือไม่?`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setDeletingId(item.id);
+
+      const res = await fetch(`/api/admin/employment-types/${item.id}`, {
+        method: "DELETE",
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data?.error || "Delete failed");
+      }
+
+      setEmploymentTypes((prev) => prev.filter((x) => x.id !== item.id));
+      swalSuccess("ลบข้อมูลเรียบร้อยแล้ว");
+    } catch (err) {
+      console.error(err);
+      swalError(err.message || "เกิดข้อผิดพลาดในการลบข้อมูล");
+    } finally {
+      setDeletingId("");
+    }
   };
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
@@ -82,7 +198,7 @@ export default function EmploymentTypesPage() {
 
           <button
             type="button"
-            onClick={() => setOpenModal(true)}
+            onClick={handleOpenCreate}
             className="rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white hover:bg-slate-800 transition"
           >
             + เพิ่มประเภทการจ้าง
@@ -90,7 +206,6 @@ export default function EmploymentTypesPage() {
         </div>
       </div>
 
-      {/* Search */}
       <div className="bg-white border border-slate-200 rounded-3xl p-4 shadow-sm">
         <input
           type="text"
@@ -101,7 +216,12 @@ export default function EmploymentTypesPage() {
         />
       </div>
 
-      {/* Table */}
+      {error ? (
+        <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+          {error}
+        </div>
+      ) : null}
+
       <div className="bg-white border border-slate-200 rounded-3xl shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
@@ -119,8 +239,25 @@ export default function EmploymentTypesPage() {
             </thead>
 
             <tbody>
-              {filteredEmploymentTypes.length > 0 ? (
-                filteredEmploymentTypes.map((item) => (
+              {loading ? (
+                [...Array(5)].map((_, i) => (
+                  <tr key={i} className="border-t border-slate-200">
+                    <td className="px-6 py-4">
+                      <div className="h-3.5 w-28 animate-pulse rounded-md bg-slate-200" />
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="h-3.5 w-40 animate-pulse rounded-md bg-slate-200" />
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="h-6 w-16 animate-pulse rounded-full bg-slate-200" />
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="ml-auto h-8 w-24 animate-pulse rounded-xl bg-slate-200" />
+                    </td>
+                  </tr>
+                ))
+              ) : employmentTypes.length > 0 ? (
+                employmentTypes.map((item) => (
                   <tr
                     key={item.id}
                     className="border-t border-slate-200 hover:bg-slate-50"
@@ -149,6 +286,7 @@ export default function EmploymentTypesPage() {
                       <div className="flex justify-end gap-2">
                         <button
                           type="button"
+                          onClick={() => handleOpenEdit(item)}
                           className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100"
                         >
                           Edit
@@ -156,9 +294,15 @@ export default function EmploymentTypesPage() {
 
                         <button
                           type="button"
-                          className="rounded-xl border border-red-200 px-3 py-2 text-xs font-medium text-red-600 hover:bg-red-50"
+                          onClick={() => handleDelete(item)}
+                          disabled={deletingId === item.id}
+                          className={`rounded-xl border px-3 py-2 text-xs font-medium ${
+                            deletingId === item.id
+                              ? "cursor-not-allowed border-slate-200 text-slate-400"
+                              : "border-red-200 text-red-600 hover:bg-red-50"
+                          }`}
                         >
-                          Delete
+                          {deletingId === item.id ? "Deleting..." : "Delete"}
                         </button>
                       </div>
                     </td>
@@ -179,16 +323,17 @@ export default function EmploymentTypesPage() {
         </div>
       </div>
 
-      {/* Modal */}
       {openModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-2xl rounded-3xl bg-white shadow-2xl">
             <div className="border-b border-slate-200 px-6 py-4">
               <h2 className="text-xl font-bold text-slate-800">
-                เพิ่มประเภทการจ้าง
+                {editingEmploymentType ? "แก้ไขประเภทการจ้าง" : "เพิ่มประเภทการจ้าง"}
               </h2>
               <p className="text-sm text-slate-500 mt-1">
-                กรอกข้อมูลประเภทการจ้างใหม่
+                {editingEmploymentType
+                  ? "ปรับปรุงข้อมูลประเภทการจ้าง"
+                  : "กรอกข้อมูลประเภทการจ้างใหม่"}
               </p>
             </div>
 
@@ -253,7 +398,8 @@ export default function EmploymentTypesPage() {
             <div className="flex justify-end gap-3 border-t border-slate-200 px-6 py-4">
               <button
                 type="button"
-                onClick={() => setOpenModal(false)}
+                onClick={handleCloseModal}
+                disabled={saving}
                 className="rounded-2xl border border-slate-300 px-5 py-3 text-sm font-medium text-slate-600 hover:bg-slate-100"
               >
                 Cancel
@@ -261,10 +407,15 @@ export default function EmploymentTypesPage() {
 
               <button
                 type="button"
-                onClick={handleCreate}
-                className="rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white hover:bg-slate-800"
+                onClick={handleSave}
+                disabled={saving}
+                className={`rounded-2xl px-5 py-3 text-sm font-semibold text-white ${
+                  saving
+                    ? "cursor-not-allowed bg-slate-400"
+                    : "bg-slate-900 hover:bg-slate-800"
+                }`}
               >
-                Save
+                {saving ? "Saving..." : editingEmploymentType ? "Update" : "Save"}
               </button>
             </div>
           </div>

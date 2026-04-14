@@ -85,10 +85,10 @@ export default function AdminLayout({ children }) {
                 <button
                   type="button"
                   onClick={() => handleGroupClick(group.title)}
-                  className="w-full flex items-center justify-between px-2 py-1.5 rounded-lg
-                            hover:bg-white/5 transition-colors group/header"
+                  className={`w-full flex items-center justify-between px-2 py-1.5 rounded-lg
+                            hover:bg-white/5 transition-colors group/header`}
                 >
-                  <span className="text-[10px] font-semibold tracking-widest text-slate-500 uppercase">
+                  <span className="text-[14px] font-semibold tracking-widest text-slate-500 uppercase">
                     {group.title}
                   </span>
                   <span
@@ -96,7 +96,7 @@ export default function AdminLayout({ children }) {
                                 ${isOpen ? "rotate-180" : "rotate-0"}`}
                   >
                     <svg
-                      width="12" height="12" viewBox="0 0 10 10"
+                      width="20" height="20" viewBox="0 0 10 10"
                       fill="none" stroke="currentColor"
                       strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"
                     >
