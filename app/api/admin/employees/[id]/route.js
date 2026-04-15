@@ -20,6 +20,7 @@ export async function PATCH(req, { params }) {
     const nationality = body?.nationality || null;
     const hire_date = body?.hire_date || null;
     const employment_type = body?.employment_type || null;
+    const employee_status_id = body?.employee_status_id || null;
     const status = body?.status || "active";
 
     const branch_id = body?.branch_id || null;
@@ -44,7 +45,10 @@ export async function PATCH(req, { params }) {
 
     if (!branch_id || !department_id || !division_id || !unit_id || !position_id) {
       return NextResponse.json(
-        { success: false, error: "กรุณาเลือกสาขา แผนก ฝ่าย หน่วยงาน และตำแหน่งให้ครบ" },
+        {
+          success: false,
+          error: "กรุณาเลือกสาขา แผนก ฝ่าย หน่วยงาน และตำแหน่งให้ครบ",
+        },
         { status: 400 }
       );
     }
@@ -52,6 +56,13 @@ export async function PATCH(req, { params }) {
     if (!nationality) {
       return NextResponse.json(
         { success: false, error: "กรุณาเลือกสัญชาติ" },
+        { status: 400 }
+      );
+    }
+
+    if (!employee_status_id) {
+      return NextResponse.json(
+        { success: false, error: "กรุณาเลือกสถานะพนักงาน" },
         { status: 400 }
       );
     }
@@ -70,6 +81,7 @@ export async function PATCH(req, { params }) {
         nationality,
         hire_date,
         employment_type,
+        employee_status_id,
         status,
         branch_id,
         department_id,
@@ -99,12 +111,17 @@ export async function PATCH(req, { params }) {
         hire_date,
         employment_type,
         status,
+        employee_status_id,
         branch_id,
         department_id,
         division_id,
         unit_id,
         position_id,
         created_at,
+        employee_statuses (
+          status_name,
+          color
+        ),
         branches (
           branch_name
         ),
@@ -146,6 +163,9 @@ export async function PATCH(req, { params }) {
         hire_date: data.hire_date || "",
         employment_type: data.employment_type || "",
         status: data.status,
+        employee_status_id: data.employee_status_id || "",
+        employee_status_name: data.employee_statuses?.status_name || "-",
+        employee_status_color: data.employee_statuses?.color || "slate",
         branch_id: data.branch_id || "",
         department_id: data.department_id || "",
         division_id: data.division_id || "",

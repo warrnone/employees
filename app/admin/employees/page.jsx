@@ -23,6 +23,7 @@ const initialForm = {
   division_id: "",
   unit_id: "",
   position_id: "",
+  employee_status_id: "",
   status: "active",
 };
 
@@ -45,6 +46,7 @@ export default function EmployeesPage() {
   const [editingEmployee, setEditingEmployee] = useState(null);
   const [form, setForm] = useState(initialForm);
   const [employmentTypes, setEmploymentTypes] = useState([]);
+  const [employeeStatuses, setEmployeeStatuses] = useState([]);
 
   const loadEmploymentTypes = async () => {
     const res = await fetch("/api/admin/employment-types", {
@@ -136,6 +138,19 @@ export default function EmployeesPage() {
     }
   };
 
+  const loadEmployeeStatuses = async () => {
+    const res = await fetch("/api/admin/employee-statuses", {
+      cache: "no-store",
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data?.error || "Load employee statuses failed");
+    }
+
+    setEmployeeStatuses(data.data || []);
+  };
+
   useEffect(() => {
     Promise.all([
       loadBranches(),
@@ -144,6 +159,7 @@ export default function EmployeesPage() {
       loadUnits(),
       loadPositions(),
       loadEmploymentTypes(),
+      loadEmployeeStatuses(),
     ]).catch((err) => {
       console.error(err);
       swalError(err.message || "ไม่สามารถโหลดข้อมูล master ได้");
@@ -189,6 +205,7 @@ export default function EmployeesPage() {
       division_id: employee.division_id || "",
       unit_id: employee.unit_id || "",
       position_id: employee.position_id || "",
+      employee_status_id: employee.employee_status_id || "",
       status: employee.status || "active",
     });
     setOpenModal(true);
@@ -259,6 +276,11 @@ export default function EmployeesPage() {
 
     if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
       swalError("กรุณากรอก Email ให้ถูกต้อง");
+      return;
+    }
+
+    if (!form.employee_status_id) {
+      swalError("กรุณาเลือกสถานะพนักงาน");
       return;
     }
 
@@ -333,7 +355,6 @@ export default function EmployeesPage() {
       setDeletingId("");
     }
   };
-
   
   return (
     <div className="space-y-6">
@@ -422,14 +443,20 @@ export default function EmployeesPage() {
                     <td className="px-6 py-4">
                       <span
                         className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${
-                          employee.status === "active"
+                          employee.employee_status_color === "green"
                             ? "bg-green-100 text-green-700"
-                            : employee.status === "resigned"
+                            : employee.employee_status_color === "yellow"
+                            ? "bg-yellow-100 text-yellow-700"
+                            : employee.employee_status_color === "red"
                             ? "bg-red-100 text-red-600"
+                            : employee.employee_status_color === "orange"
+                            ? "bg-orange-100 text-orange-700"
+                            : employee.employee_status_color === "blue"
+                            ? "bg-blue-100 text-blue-700"
                             : "bg-slate-100 text-slate-600"
                         }`}
                       >
-                        {employee.status}
+                        {employee.employee_status_name || "-"}
                       </span>
                     </td>
                     <td className="px-6 py-4">
@@ -730,7 +757,8 @@ export default function EmployeesPage() {
                   size="large"
                 />
               </div>
-
+              
+              {/* ตำแหน่ง */}
               <div>
                 <label className="mb-2 block text-sm font-medium text-slate-700">ตำแหน่ง</label>
                 <Select
@@ -752,19 +780,34 @@ export default function EmployeesPage() {
                   size="large"
                 />
               </div>
-
+              
+              {/* สถานะพนักงาน */}
               <div className="md:col-span-2">
-                <label className="mb-2 block text-sm font-medium text-slate-700">สถานะ</label>
+                <label className="mb-2 block text-sm font-medium text-slate-700">
+                  สถานะพนักงาน
+                </label>
                 <select
-                  value={form.status}
-                  onChange={(e) => setForm((prev) => ({ ...prev, status: e.target.value }))}
+                  value={form.employee_status_id}
+                  onChange={(e) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      employee_status_id: e.target.value,
+                    }))
+                  }
                   className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-slate-500 focus:ring-4 focus:ring-slate-100"
                 >
-                  <option value="active">active</option>
-                  <option value="inactive">inactive</option>
-                  <option value="resigned">resigned</option>
+                  <option value="">เลือกสถานะพนักงาน</option>
+
+                  {employeeStatuses
+                    .filter((item) => item.status === "active")
+                    .map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.status_name}
+                      </option>
+                    ))}
                 </select>
               </div>
+
             </div>
 
             <div className="flex justify-end gap-3 border-t border-slate-200 px-6 py-4">
