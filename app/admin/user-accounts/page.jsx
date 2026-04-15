@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Select } from "antd";
 import { swalConfirm, swalError, swalSuccess } from "../../components/Swal";
 
@@ -11,29 +11,46 @@ const initialForm = {
   is_active: true,
 };
 
+const ITEMS_PER_PAGE = 20;
+
 export default function UserAccountsPage() {
   const [search, setSearch] = useState("");
   const [userAccounts, setUserAccounts] = useState([]);
   const [employees, setEmployees] = useState([]);
 
   const [loading, setLoading] = useState(true);
+  const [employeeLoading, setEmployeeLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState("");
   const [error, setError] = useState("");
 
+  const [form, setForm] = useState(initialForm);
   const [openModal, setOpenModal] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
-  const [form, setForm] = useState(initialForm);
+  const [currentPage, setCurrentPage] = useState(1);
 
-  const loadEmployees = async () => {
-    const res = await fetch("/api/admin/employees", { cache: "no-store" });
-    const data = await res.json();
+  const loadEmployees = async (keyword = "") => {
+    try {
+      setEmployeeLoading(true);
 
-    if (!res.ok) {
-      throw new Error(data?.error || "Load employees failed");
+      const url = `/api/admin/employees?search=${encodeURIComponent(
+        keyword
+      )}&limit=20`;
+
+      const res = await fetch(url, { cache: "no-store" });
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data?.error || "Load employees failed");
+      }
+
+      setEmployees(data.data || []);
+    } catch (err) {
+      console.error(err);
+      swalError(err.message || "ไม่สามารถโหลดข้อมูลพนักงานได้");
+    } finally {
+      setEmployeeLoading(false);
     }
-
-    setEmployees(data.data || []);
   };
 
   const loadUserAccounts = async (keyword = "") => {
@@ -53,6 +70,7 @@ export default function UserAccountsPage() {
       }
 
       setUserAccounts(data.data || []);
+      setCurrentPage(1);
     } catch (err) {
       console.error(err);
       setError(err.message || "เกิดข้อผิดพลาดในการโหลดข้อมูล");
@@ -62,7 +80,7 @@ export default function UserAccountsPage() {
   };
 
   useEffect(() => {
-    Promise.all([loadEmployees(), loadUserAccounts()]).catch((err) => {
+    loadUserAccounts().catch((err) => {
       console.error(err);
       swalError(err.message || "ไม่สามารถโหลดข้อมูลได้");
     });
@@ -79,19 +97,21 @@ export default function UserAccountsPage() {
   const resetForm = () => {
     setForm(initialForm);
     setEditingUser(null);
+    setEmployees([]);
   };
 
-  const handleOpenCreate = () => {
+  const handleOpenCreate = async () => {
     resetForm();
     setOpenModal(true);
+    await loadEmployees("");
   };
 
-  const handleOpenEdit = (item) => {
+  const handleOpenEdit = async (item) => {
     if (item.username?.toLowerCase() === "admin") {
       swalError("ไม่สามารถแก้ไขผู้ใช้งาน admin ได้");
       return;
     }
-    
+
     setEditingUser(item);
     setForm({
       employee_id: item.employee_id || "",
@@ -100,6 +120,7 @@ export default function UserAccountsPage() {
       is_active: !!item.is_active,
     });
     setOpenModal(true);
+    await loadEmployees("");
   };
 
   const handleCloseModal = () => {
@@ -115,6 +136,16 @@ export default function UserAccountsPage() {
 
     if (!editingUser && !form.password.trim()) {
       swalError("กรุณากรอกรหัสผ่าน");
+      return;
+    }
+
+    if (!editingUser && form.password.trim().length < 6) {
+      swalError("รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร");
+      return;
+    }
+
+    if (editingUser && form.password.trim() && form.password.trim().length < 6) {
+      swalError("รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร");
       return;
     }
 
@@ -157,6 +188,7 @@ export default function UserAccountsPage() {
       }
 
       handleCloseModal();
+      loadUserAccounts(search);
     } catch (err) {
       console.error(err);
       swalError(err.message || "เกิดข้อผิดพลาดในการบันทึก");
@@ -192,6 +224,7 @@ export default function UserAccountsPage() {
 
       setUserAccounts((prev) => prev.filter((x) => x.id !== item.id));
       swalSuccess("ลบผู้ใช้งานเรียบร้อยแล้ว");
+      loadUserAccounts(search);
     } catch (err) {
       console.error(err);
       swalError(err.message || "เกิดข้อผิดพลาดในการลบข้อมูล");
@@ -199,6 +232,17 @@ export default function UserAccountsPage() {
       setDeletingId("");
     }
   };
+
+  const totalPages = Math.max(1, Math.ceil(userAccounts.length / ITEMS_PER_PAGE));
+
+  const paginatedUserAccounts = useMemo(() => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    const endIndex = startIndex + ITEMS_PER_PAGE;
+    return userAccounts.slice(startIndex, endIndex);
+  }, [userAccounts, currentPage]);
+
+  const pageStart = userAccounts.length === 0 ? 0 : (currentPage - 1) * ITEMS_PER_PAGE + 1;
+  const pageEnd = Math.min(currentPage * ITEMS_PER_PAGE, userAccounts.length);
 
   return (
     <div className="space-y-6">
@@ -253,19 +297,33 @@ export default function UserAccountsPage() {
 
             <tbody>
               {loading ? (
-                [...Array(userAccounts.length)].map((_, i) => (
+                [...Array(ITEMS_PER_PAGE)].map((_, i) => (
                   <tr key={i} className="border-t border-slate-200">
-                    <td className="px-6 py-4"><div className="h-4 w-24 animate-pulse rounded bg-slate-200" /></td>
-                    <td className="px-6 py-4"><div className="h-4 w-24 animate-pulse rounded bg-slate-200" /></td>
-                    <td className="px-6 py-4"><div className="h-4 w-40 animate-pulse rounded bg-slate-200" /></td>
-                    <td className="px-6 py-4"><div className="h-4 w-32 animate-pulse rounded bg-slate-200" /></td>
-                    <td className="px-6 py-4"><div className="h-6 w-16 animate-pulse rounded-full bg-slate-200" /></td>
-                    <td className="px-6 py-4"><div className="ml-auto h-8 w-24 animate-pulse rounded bg-slate-200" /></td>
+                    <td className="px-6 py-4">
+                      <div className="h-4 w-24 animate-pulse rounded bg-slate-200" />
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="h-4 w-24 animate-pulse rounded bg-slate-200" />
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="h-4 w-40 animate-pulse rounded bg-slate-200" />
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="h-4 w-32 animate-pulse rounded bg-slate-200" />
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="h-6 w-16 animate-pulse rounded-full bg-slate-200" />
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="ml-auto h-8 w-24 animate-pulse rounded bg-slate-200" />
+                    </td>
                   </tr>
                 ))
-              ) : userAccounts.length > 0 ? (
-               userAccounts.map((item) => {
-                  const isProtectedAdmin = item.username?.toLowerCase() === "admin";
+              ) : paginatedUserAccounts.length > 0 ? (
+                paginatedUserAccounts.map((item) => {
+                  const isProtectedAdmin =
+                    item.username?.toLowerCase() === "admin";
+
                   return (
                     <tr
                       key={item.id}
@@ -339,7 +397,10 @@ export default function UserAccountsPage() {
                 })
               ) : (
                 <tr>
-                  <td colSpan={6} className="px-6 py-10 text-center text-slate-400">
+                  <td
+                    colSpan={6}
+                    className="px-6 py-10 text-center text-slate-400"
+                  >
                     ไม่พบข้อมูลผู้ใช้งานระบบ
                   </td>
                 </tr>
@@ -347,6 +408,63 @@ export default function UserAccountsPage() {
             </tbody>
           </table>
         </div>
+
+        {!loading && userAccounts.length > 0 ? (
+          <div className="flex flex-col gap-3 border-t border-slate-200 px-6 py-4 md:flex-row md:items-center md:justify-between">
+            <p className="text-sm text-slate-500">
+              แสดง {pageStart}-{pageEnd} จากทั้งหมด {userAccounts.length} รายการ
+            </p>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+                className={`rounded-xl border px-4 py-2 text-sm font-medium ${
+                  currentPage === 1
+                    ? "cursor-not-allowed border-slate-200 bg-slate-50 text-slate-400"
+                    : "border-slate-300 text-slate-700 hover:bg-slate-100"
+                }`}
+              >
+                ก่อนหน้า
+              </button>
+
+              <div className="flex items-center gap-1">
+                {Array.from({ length: totalPages }, (_, index) => index + 1).map(
+                  (page) => (
+                    <button
+                      key={page}
+                      type="button"
+                      onClick={() => setCurrentPage(page)}
+                      className={`h-10 min-w-10 rounded-xl px-3 text-sm font-semibold ${
+                        currentPage === page
+                          ? "bg-slate-900 text-white"
+                          : "border border-slate-300 text-slate-700 hover:bg-slate-100"
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  )
+                )}
+              </div>
+
+              <button
+                type="button"
+                onClick={() =>
+                  setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+                }
+                disabled={currentPage === totalPages}
+                className={`rounded-xl border px-4 py-2 text-sm font-medium ${
+                  currentPage === totalPages
+                    ? "cursor-not-allowed border-slate-200 bg-slate-50 text-slate-400"
+                    : "border-slate-300 text-slate-700 hover:bg-slate-100"
+                }`}
+              >
+                ถัดไป
+              </button>
+            </div>
+          </div>
+        ) : null}
       </div>
 
       {openModal && (
@@ -363,21 +481,48 @@ export default function UserAccountsPage() {
                 <label className="mb-2 block text-sm font-medium text-slate-700">
                   พนักงาน
                 </label>
+
                 <Select
                   showSearch
                   allowClear
-                  placeholder="เลือกพนักงาน"
+                  filterOption={false}
+                  placeholder="ค้นหาพนักงาน"
                   value={form.employee_id || undefined}
+                  onSearch={loadEmployees}
+                  onFocus={() => {
+                    if (employees.length === 0) {
+                      loadEmployees("");
+                    }
+                  }}
                   onChange={(value) =>
                     setForm((prev) => ({
                       ...prev,
                       employee_id: value ?? "",
                     }))
                   }
-                  options={employees.map((emp) => ({
-                    value: emp.id,
-                    label: `${emp.employee_code} - ${emp.full_name_th}`,
-                  }))}
+                  notFoundContent={
+                    employeeLoading ? "กำลังค้นหาพนักงาน..." : "ไม่พบข้อมูล"
+                  }
+                  options={employees.map((emp) => {
+                    const fullNameTh =
+                      emp.full_name_th ||
+                      `${emp.first_name_th || ""} ${
+                        emp.last_name_th || ""
+                      }`.trim();
+
+                    const fullNameEn =
+                      emp.full_name_en ||
+                      `${emp.first_name_en || ""} ${
+                        emp.last_name_en || ""
+                      }`.trim();
+
+                    return {
+                      value: emp.id,
+                      label: `${emp.employee_code || "-"} - ${
+                        fullNameTh || fullNameEn || "-"
+                      }`,
+                    };
+                  })}
                   className="w-full"
                   size="large"
                 />
@@ -414,7 +559,11 @@ export default function UserAccountsPage() {
                       password: e.target.value,
                     }))
                   }
-                  placeholder={editingUser ? "กรอกเมื่อต้องการเปลี่ยนรหัสผ่าน" : "กรอกรหัสผ่านอย่างน้อย 6 ตัว"}
+                  placeholder={
+                    editingUser
+                      ? "กรอกเมื่อต้องการเปลี่ยนรหัสผ่าน"
+                      : "กรอกรหัสผ่านอย่างน้อย 6 ตัว"
+                  }
                   className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-slate-500 focus:ring-4 focus:ring-slate-100"
                 />
               </div>

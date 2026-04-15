@@ -80,7 +80,7 @@ export const sidebarMenus = [
         icon: <UserOutlined />,
       },
       {
-        label: "Roles",
+        label: "บทบาทผู้ใช้งานในระบบ",
         href: "/admin/roles",
         icon: <SafetyOutlined />,
       },

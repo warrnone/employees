@@ -42,15 +42,16 @@ function padRunning(no) {
 export async function GET(req) {
   try {
     const { searchParams } = new URL(req.url);
-    const search = searchParams.get("search")?.trim().toLowerCase() || "";
-    const page = Number(searchParams.get("page") || 1);
-    const pageSize = Number(searchParams.get("pageSize") || 20);
+    const search = searchParams.get("search")?.trim() || "";
+    const page = Math.max(Number(searchParams.get("page") || 1), 1);
+    const pageSize = Math.max(Number(searchParams.get("pageSize") || 20), 1);
     const from = (page - 1) * pageSize;
     const to = from + pageSize - 1;
 
-    const { data, error , count  } = await supabaseAdmin
+    let query = supabaseAdmin
       .from("employees")
-      .select(`
+      .select(
+        `
         id,
         employee_code,
         first_name_th,
@@ -92,9 +93,27 @@ export async function GET(req) {
           position_name,
           position_level
         )
-      `, { count: "exact" })
-      .order("created_at", { ascending: false })
-      .range(from, to);
+      `,
+        { count: "exact" }
+      )
+      .order("created_at", { ascending: false });
+
+    if (search) {
+      query = query.or(
+        [
+          `employee_code.ilike.%${search}%`,
+          `first_name_th.ilike.%${search}%`,
+          `last_name_th.ilike.%${search}%`,
+          `first_name_en.ilike.%${search}%`,
+          `last_name_en.ilike.%${search}%`,
+          `nick_name.ilike.%${search}%`,
+          `phone.ilike.%${search}%`,
+          `email.ilike.%${search}%`,
+        ].join(",")
+      );
+    }
+
+    const { data, error, count } = await query.range(from, to);
 
     if (error) throw error;
 
@@ -106,6 +125,7 @@ export async function GET(req) {
       first_name_en: item.first_name_en || "",
       last_name_en: item.last_name_en || "",
       full_name_th: `${item.first_name_th || ""} ${item.last_name_th || ""}`.trim(),
+      full_name_en: `${item.first_name_en || ""} ${item.last_name_en || ""}`.trim(),
       nick_name: item.nick_name || "",
       gender: item.gender || "",
       phone: item.phone || "",
@@ -131,26 +151,9 @@ export async function GET(req) {
       created_at: item.created_at,
     }));
 
-    const filteredData = search
-      ? mappedData.filter((item) => {
-          return (
-            item.employee_code?.toLowerCase().includes(search) ||
-            item.first_name_th?.toLowerCase().includes(search) ||
-            item.last_name_th?.toLowerCase().includes(search) ||
-            item.full_name_th?.toLowerCase().includes(search) ||
-            item.branch_name?.toLowerCase().includes(search) ||
-            item.department_name?.toLowerCase().includes(search) ||
-            item.division_name?.toLowerCase().includes(search) ||
-            item.unit_name?.toLowerCase().includes(search) ||
-            item.position_name?.toLowerCase().includes(search) ||
-            item.employee_status_name?.toLowerCase().includes(search)
-          );
-        })
-      : mappedData;
-
     return NextResponse.json({
       success: true,
-      data: filteredData,
+      data: mappedData,
       pagination: {
         page,
         pageSize,
