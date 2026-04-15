@@ -43,8 +43,12 @@ export async function GET(req) {
   try {
     const { searchParams } = new URL(req.url);
     const search = searchParams.get("search")?.trim().toLowerCase() || "";
+    const page = Number(searchParams.get("page") || 1);
+    const pageSize = Number(searchParams.get("pageSize") || 20);
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
 
-    const { data, error } = await supabaseAdmin
+    const { data, error , count  } = await supabaseAdmin
       .from("employees")
       .select(`
         id,
@@ -88,8 +92,9 @@ export async function GET(req) {
           position_name,
           position_level
         )
-      `)
-      .order("created_at", { ascending: false });
+      `, { count: "exact" })
+      .order("created_at", { ascending: false })
+      .range(from, to);
 
     if (error) throw error;
 
@@ -146,6 +151,12 @@ export async function GET(req) {
     return NextResponse.json({
       success: true,
       data: filteredData,
+      pagination: {
+        page,
+        pageSize,
+        total: count || 0,
+        totalPages: Math.ceil((count || 0) / pageSize),
+      },
     });
   } catch (error) {
     console.error("GET_EMPLOYEES_ERROR:", error);

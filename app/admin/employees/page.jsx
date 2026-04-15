@@ -48,6 +48,12 @@ export default function EmployeesPage() {
   const [employmentTypes, setEmploymentTypes] = useState([]);
   const [employeeStatuses, setEmployeeStatuses] = useState([]);
 
+  // Partition
+  const [page, setPage] = useState(1);
+  const [pageSize] = useState(20);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+
   const loadEmploymentTypes = async () => {
     const res = await fetch("/api/admin/employment-types", {
       cache: "no-store",
@@ -113,16 +119,19 @@ export default function EmployeesPage() {
     setPositions(data.data || []);
   };
 
-  const loadEmployees = async (keyword = "") => {
+  const loadEmployees = async (keyword = "", currentPage = 1) => {
     try {
       setLoading(true);
       setError("");
 
-      const url = keyword
-        ? `/api/admin/employees?search=${encodeURIComponent(keyword)}`
-        : "/api/admin/employees";
+      const params = new URLSearchParams();
+      if (keyword) params.set("search", keyword);
+      params.set("page", String(currentPage));
+      params.set("pageSize", String(pageSize));
 
-      const res = await fetch(url, { cache: "no-store" });
+      const res = await fetch(`/api/admin/employees?${params.toString()}`, {
+        cache: "no-store",
+      });
       const data = await res.json();
 
       if (!res.ok) {
@@ -130,6 +139,9 @@ export default function EmployeesPage() {
       }
 
       setEmployees(data.data || []);
+      setPage(data.pagination?.page || 1);
+      setTotal(data.pagination?.total || 0);
+      setTotalPages(data.pagination?.totalPages || 1);
     } catch (err) {
       console.error(err);
       setError(err.message || "เกิดข้อผิดพลาดในการโหลดข้อมูล");
@@ -170,7 +182,7 @@ export default function EmployeesPage() {
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      loadEmployees(search);
+      loadEmployees(search, 1);
     }, 300);
 
     return () => clearTimeout(timer);
@@ -493,6 +505,37 @@ export default function EmployeesPage() {
               )}
             </tbody>
           </table>
+
+          <div className="flex items-center justify-between border-t border-slate-200 px-6 py-4">
+            <p className="text-sm text-slate-500">
+              ทั้งหมด {total} รายการ
+            </p>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                disabled={page <= 1 || loading}
+                onClick={() => loadEmployees(search, page - 1)}
+                className="rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-600 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                ก่อนหน้า
+              </button>
+
+              <span className="text-sm text-slate-600">
+                หน้า {page} / {totalPages}
+              </span>
+
+              <button
+                type="button"
+                disabled={page >= totalPages || loading}
+                onClick={() => loadEmployees(search, page + 1)}
+                className="rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-600 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                ถัดไป
+              </button>
+            </div>
+          </div>
+          
         </div>
       </div>
 
