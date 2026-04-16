@@ -6,6 +6,10 @@ import { swalConfirm, swalError, swalSuccess } from "../../components/Swal";
 import { PhoneInput } from "react-international-phone";
 import "react-international-phone/style.css";
 
+import { useRouter } from "next/navigation";
+import useAuth from "@/hooks/useAuth";
+import { hasPermission } from "@/lib/permissions";
+
 const initialForm = {
   first_name_th: "",
   last_name_th: "",
@@ -53,6 +57,23 @@ export default function EmployeesPage() {
   const [pageSize] = useState(20);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
+
+  // #region Permission
+  const router = useRouter();
+  const user = useAuth();
+  const canView = hasPermission(user, "employees.view");
+  const canCreate = hasPermission(user, "employees.create");
+  const canEdit = hasPermission(user, "employees.edit");
+  const canDelete = hasPermission(user, "employees.delete");
+  console.log(user); 
+  
+  useEffect(() => {
+    if (!user) return;
+    if (!canView) {
+      router.replace("/admin");
+    }
+  }, [user, canView, router]);
+  // #endregion
 
   const loadEmploymentTypes = async () => {
     const res = await fetch("/api/admin/employment-types", {
@@ -367,7 +388,12 @@ export default function EmployeesPage() {
       setDeletingId("");
     }
   };
-  
+
+  // #region Permission
+  if (!user) return null;
+  if (!canView) return null;
+  // #endregion
+
   return (
     <div className="space-y-6">
       <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
