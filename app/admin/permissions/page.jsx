@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { swalConfirm, swalError, swalSuccess } from "../../components/Swal";
+import { Pagination } from "antd";
 
 const initialForm = {
   module_code: "",
@@ -22,6 +23,9 @@ export default function PermissionsPage() {
   const [openModal, setOpenModal] = useState(false);
   const [editingPermission, setEditingPermission] = useState(null);
   const [form, setForm] = useState(initialForm);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 7;
+  const paginatedPermissions = permissions.slice((currentPage - 1) * pageSize,currentPage * pageSize);
 
   const loadPermissions = async () => {
     try {
@@ -218,6 +222,7 @@ export default function PermissionsPage() {
           <table className="min-w-full text-sm">
             <thead className="bg-slate-100 text-slate-600">
               <tr>
+                <th className="px-6 py-4 text-left">ลำดับ</th>
                 <th className="px-6 py-4 text-left">Module</th>
                 <th className="px-6 py-4 text-left">Action</th>
                 <th className="px-6 py-4 text-left">Permission Code</th>
@@ -256,11 +261,15 @@ export default function PermissionsPage() {
                   </tr>
                 ))
               ) : permissions.length > 0 ? (
-                permissions.map((item) => (
+                paginatedPermissions.map((item , index) => (
                   <tr
                     key={item.id}
                     className="border-t border-slate-200 hover:bg-slate-50"
                   >
+                    <td className="px-6 py-4 font-medium text-slate-700">
+                      {index + 1}
+                    </td>
+
                     <td className="px-6 py-4 font-medium text-slate-700">
                       {item.module_code}
                     </td>
@@ -340,6 +349,21 @@ export default function PermissionsPage() {
               )}
             </tbody>
           </table>
+
+          <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100">
+            <span className="text-sm text-slate-400">
+              แสดง {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, permissions.length)} จาก {permissions.length} รายการ
+            </span>
+
+            <Pagination
+              current={currentPage}
+              total={permissions.length}
+              pageSize={pageSize}
+              onChange={(page) => setCurrentPage(page)}
+              showSizeChanger={false}
+              className="[&_.ant-pagination-item-active]:!bg-slate-900 [&_.ant-pagination-item-active]:!border-slate-900 [&_.ant-pagination-item-active_a]:!text-white [&_.ant-pagination-item]:!rounded-xl [&_.ant-pagination-prev_.ant-pagination-item-link]:!rounded-xl [&_.ant-pagination-next_.ant-pagination-item-link]:!rounded-xl"
+            />
+          </div>
         </div>
       </div>
 

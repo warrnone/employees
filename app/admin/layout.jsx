@@ -1,15 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter  } from "next/navigation";
-import { useState , useEffect } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
 import { sidebarMenus } from "./components/sidebarMenus";
-import { swalSuccess, swalError , swalConfirm  } from "../components/Swal";
+import { swalSuccess, swalError, swalConfirm } from "../components/Swal";
 import { Button, Tooltip, Tag } from "antd";
-import { LogoutOutlined,LoadingOutlined } from "@ant-design/icons";
+import { LogoutOutlined, LoadingOutlined } from "@ant-design/icons";
 import useAuth from "@/hooks/useAuth";
 import { hasPermission } from "@/lib/permissions";
-
 
 export default function AdminLayout({ children }) {
   const pathname = usePathname();
@@ -17,11 +16,10 @@ export default function AdminLayout({ children }) {
   const [loggingOut, setLoggingOut] = useState(false);
   const menus = sidebarMenus;
   const [openGroup, setOpenGroup] = useState(menus[0]?.title ?? null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const user = useAuth();
 
-
   const handleGroupClick = (title) => {
-    // ถ้าคลิก group เดิมที่เปิดอยู่ → toggle ปิด, ไม่งั้น → เปิด group นี้
     setOpenGroup((prev) => (prev === title ? null : title));
   };
 
@@ -32,8 +30,8 @@ export default function AdminLayout({ children }) {
     );
 
     if (!result.isConfirmed) return;
-
     if (loggingOut) return;
+
     setLoggingOut(true);
     try {
       await fetch("/api/auth/logout", { method: "POST" });
@@ -41,7 +39,7 @@ export default function AdminLayout({ children }) {
       router.push("/login");
       router.refresh();
     } catch (error) {
-      swalError(error);
+      swalError(error?.message || "Logout failed");
       console.error("Logout failed:", error);
     } finally {
       setLoggingOut(false);
@@ -57,15 +55,23 @@ export default function AdminLayout({ children }) {
     const activeGroup = menus.find((group) =>
       group.items.some((item) => isActiveMenu(item.href))
     );
+
     if (activeGroup) setOpenGroup(activeGroup.title);
-  }, [pathname]);
+
+    setMobileMenuOpen(false);
+  }, [pathname, menus]);
 
   return (
     <div className="min-h-screen bg-slate-100 flex">
-
       {/* Sidebar */}
-      <aside className="fixed top-0 left-0 h-screen w-64 bg-[#0a1628] text-white flex flex-col z-10">
-
+      <aside
+        className={`
+          fixed top-0 left-0 h-screen w-64 bg-[#0a1628] text-white flex flex-col z-40
+          transform transition-transform duration-300
+          ${mobileMenuOpen ? "translate-x-0" : "-translate-x-full"}
+          lg:translate-x-0
+        `}
+      >
         {/* Logo */}
         <div className="px-5 py-5 border-b border-white/10">
           <div className="flex items-center gap-3">
@@ -73,8 +79,12 @@ export default function AdminLayout({ children }) {
               HW
             </div>
             <div>
-              <p className="text-sm font-semibold text-white leading-tight">Employee Master</p>
-              <p className="text-[10px] text-slate-400 mt-0.5">Hanuman World · Admin</p>
+              <p className="text-sm font-semibold text-white leading-tight">
+                Employee Master
+              </p>
+              <p className="text-[10px] text-slate-400 mt-0.5">
+                Hanuman World · Admin
+              </p>
             </div>
           </div>
         </div>
@@ -96,15 +106,16 @@ export default function AdminLayout({ children }) {
                 <button
                   type="button"
                   onClick={() => handleGroupClick(group.title)}
-                  className={`w-full flex items-center justify-between px-2 py-1.5 rounded-lg
-                              hover:bg-white/5 transition-colors group/header`}
+                  className="w-full flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-white/5 transition-colors"
                 >
                   <span className="text-[14px] font-semibold tracking-widest text-slate-500 uppercase">
                     {group.title}
                   </span>
+
                   <span
-                    className={`text-slate-500 transition-transform duration-250 inline-block
-                                ${isOpen ? "rotate-180" : "rotate-0"}`}
+                    className={`text-slate-500 transition-transform duration-300 inline-block ${
+                      isOpen ? "rotate-180" : "rotate-0"
+                    }`}
                   >
                     <svg
                       width="20"
@@ -122,8 +133,9 @@ export default function AdminLayout({ children }) {
                 </button>
 
                 <div
-                  className={`overflow-hidden transition-all duration-300 ease-in-out
-                              ${isOpen ? "max-h-[500px] opacity-100" : "max-h-0 opacity-0"}`}
+                  className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                    isOpen ? "max-h-[500px] opacity-100" : "max-h-0 opacity-0"
+                  }`}
                 >
                   <div className="space-y-0.5 pt-0.5">
                     {visibleItems.map((item) => {
@@ -172,22 +184,57 @@ export default function AdminLayout({ children }) {
         </div>
       </aside>
 
-      {/* Main */}
-      <div className="flex-1 flex flex-col min-w-0 ml-64">
+      {/* Overlay สำหรับ mobile */}
+      {mobileMenuOpen && (
+        <div
+          className="fixed inset-0 bg-black/40 z-30 lg:hidden"
+          onClick={() => setMobileMenuOpen(false)}
+        />
+      )}
 
+      {/* Main */}
+      <div className="flex-1 flex flex-col min-w-0 lg:ml-64">
         {/* Header */}
-        <header className="h-14 bg-white border-b border-slate-200 flex items-center justify-between px-6">
-          <div>
-            <h2 className="text-sm font-semibold text-slate-800">Admin Panel</h2>
-            <p className="text-xs text-slate-400">Manage employee master data</p>
+        <header className="h-14 bg-white border-b border-slate-200 flex items-center justify-between px-4 lg:px-6">
+          <div className="flex items-center gap-3 min-w-0">
+            {/* Mobile menu button */}
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen(true)}
+              className="inline-flex lg:hidden items-center justify-center rounded-xl border border-slate-200 px-3 py-2 text-slate-600 hover:bg-slate-50"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-5 w-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M4 6h16M4 12h16M4 18h16"
+                />
+              </svg>
+            </button>
+
+            <div className="min-w-0">
+              <h2 className="text-sm font-semibold text-slate-800 truncate">
+                Admin Panel
+              </h2>
+              <p className="text-xs text-slate-400 truncate">
+                Manage employee master data
+              </p>
+            </div>
           </div>
 
-          <div className="flex items-center gap-3">
-            <Tag color="green" className="rounded-full px-3 text-xs font-medium border-0 bg-emerald-50 text-emerald-700">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <Tag className="rounded-full px-3 text-xs font-medium border-0 bg-emerald-50 text-emerald-700 m-0 max-w-[140px] sm:max-w-none truncate">
               {user?.full_name || user?.employee_name || user?.username || "-"}
             </Tag>
 
-            <div className="w-px h-5 bg-slate-200" />
+            <div className="w-px h-5 bg-slate-200 hidden sm:block" />
 
             <Tooltip title="Logout" placement="bottom">
               <Button
@@ -198,15 +245,15 @@ export default function AdminLayout({ children }) {
                 disabled={loggingOut}
                 className="flex items-center gap-1.5 text-slate-400 hover:text-red-500 text-xs"
               >
-                {loggingOut ? "Signing out..." : "Logout"}
+                <span className="hidden sm:inline">
+                  {loggingOut ? "Signing out..." : "Logout"}
+                </span>
               </Button>
             </Tooltip>
           </div>
         </header>
 
-        <main className="flex-1 p-6 overflow-auto">
-          {children}
-        </main>
+        <main className="flex-1 p-4 lg:p-6 overflow-auto">{children}</main>
       </div>
     </div>
   );
