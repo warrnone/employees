@@ -253,7 +253,7 @@ export default function AdminLayout({ children }) {
           </div>
         </header>
 
-        <main className="flex-1 p-4 lg:p-6 overflow-auto">{children}</main>
+        <main className="flex-1 p-0 lg:p-6 overflow-auto">{children}</main>
       </div>
     </div>
   );
