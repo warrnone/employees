@@ -24,9 +24,15 @@ export async function POST(req) {
       .select(`
         id,
         employee_id,
+        role_id,
         username,
         password_hash,
-        is_active
+        is_active,
+        roles (
+          id,
+          role_code,
+          role_name
+        )
       `)
       .eq("username", username)
       .maybeSingle();
@@ -60,11 +66,6 @@ export async function POST(req) {
       );
     }
 
-    console.log("LOGIN_USERNAME:", username);
-    console.log("DB_USERNAME:", userAccount.username);
-    console.log("INPUT_PASSWORD:", password);
-    console.log("DB_HASH:", userAccount.password_hash);
-
     // =========================
     // 2) ตรวจสอบรหัสผ่าน
     // =========================
@@ -72,9 +73,6 @@ export async function POST(req) {
       password,
       userAccount.password_hash
     );
-
-    console.log("isPasswordValid:", isPasswordValid);
-    
 
     if (!isPasswordValid) {
       return NextResponse.json(
@@ -114,54 +112,71 @@ export async function POST(req) {
     }
 
     // =========================
-    // 4) ดึง role ของ user
+    // 4) ดึง permissions จาก role_permissions
     // =========================
-    const { data: roleRows, error: roleError } = await supabaseAdmin
-      .from("user_role_assignments")
-      .select(`
-        role_id,
-        roles (
-          id,
-          role_code,
-          role_name
-        )
-      `)
-      .eq("user_account_id", userAccount.id);
+    let permissions = [];
 
-    if (roleError) {
-      console.error("ROLE_QUERY_ERROR:", roleError);
-      return NextResponse.json(
-        { error: "เกิดข้อผิดพลาดในการดึงสิทธิ์ผู้ใช้งาน" },
-        { status: 500 }
-      );
+    if (userAccount.role_id) {
+      const { data: permissionRows, error: permissionError } =
+        await supabaseAdmin
+          .from("role_permissions")
+          .select(`
+            permission_id,
+            permissions (
+              id,
+              permission_code,
+              permission_name,
+              module_code,
+              action_code,
+              is_active
+            )
+          `)
+          .eq("role_id", userAccount.role_id);
+
+      if (permissionError) {
+        console.error("PERMISSION_QUERY_ERROR:", permissionError);
+        return NextResponse.json(
+          { error: "เกิดข้อผิดพลาดในการดึงสิทธิ์ผู้ใช้งาน" },
+          { status: 500 }
+        );
+      }
+
+      permissions =
+        permissionRows
+          ?.map((row) => row.permissions)
+          ?.filter((perm) => perm && perm.is_active)
+          ?.map((perm) => perm.permission_code) || [];
     }
 
-    const roles =
-      roleRows
-        ?.map((row) => row.roles)
-        ?.filter(Boolean)
-        ?.map((role) => ({
-          id: role.id,
-          role_code: role.role_code,
-          role_name: role.role_name,
-        })) || [];
-
-    const primaryRole = roles[0]?.role_code || null;
+    const primaryRole = userAccount.roles?.role_code || null;
+    const primaryRoleName = userAccount.roles?.role_name || null;
 
     const fullNameTh = employee
       ? `${employee.first_name_th || ""} ${employee.last_name_th || ""}`.trim()
       : userAccount.username;
 
     // =========================
-    // 5) สร้าง JWT
+    // 5) update last login
+    // =========================
+    await supabaseAdmin
+      .from("user_accounts")
+      .update({
+        last_login_at: new Date().toISOString(),
+      })
+      .eq("id", userAccount.id);
+
+    // =========================
+    // 6) สร้าง JWT
     // =========================
     const token = jwt.sign(
       {
         user_id: userAccount.id,
         employee_id: userAccount.employee_id,
+        role_id: userAccount.role_id,
         username: userAccount.username,
         role: primaryRole,
-        roles: roles.map((r) => r.role_code),
+        role_name: primaryRoleName,
+        permissions,
         employee_code: employee?.employee_code || null,
         full_name: fullNameTh,
       },
@@ -170,7 +185,7 @@ export async function POST(req) {
     );
 
     // =========================
-    // 6) ส่ง response + set cookie
+    // 7) ส่ง response + set cookie
     // =========================
     const response = NextResponse.json({
       success: true,
@@ -178,9 +193,11 @@ export async function POST(req) {
       user: {
         id: userAccount.id,
         employee_id: userAccount.employee_id,
+        role_id: userAccount.role_id,
         username: userAccount.username,
         role: primaryRole,
-        roles: roles.map((r) => r.role_code),
+        role_name: primaryRoleName,
+        permissions,
         employee_code: employee?.employee_code || null,
         full_name: fullNameTh,
       },

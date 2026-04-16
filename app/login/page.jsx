@@ -40,8 +40,10 @@ export default function LoginPage() {
       }
 
       swalSuccess("Login สำเร็จ");
+      localStorage.setItem("employee_user", JSON.stringify(data.user));
       router.push("/admin");
       router.refresh();
+
     } catch (err) {
       swalError(err.message);
       setError(err.message || "Something went wrong");

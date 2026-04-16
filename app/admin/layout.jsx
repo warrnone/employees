@@ -7,6 +7,9 @@ import { sidebarMenus } from "./components/sidebarMenus";
 import { swalSuccess, swalError , swalConfirm  } from "../components/Swal";
 import { Button, Tooltip, Tag } from "antd";
 import { LogoutOutlined,LoadingOutlined } from "@ant-design/icons";
+import useAuth from "@/hooks/useAuth";
+import { hasPermission } from "@/lib/permissions";
+
 
 export default function AdminLayout({ children }) {
   const pathname = usePathname();
@@ -14,6 +17,8 @@ export default function AdminLayout({ children }) {
   const [loggingOut, setLoggingOut] = useState(false);
   const menus = sidebarMenus;
   const [openGroup, setOpenGroup] = useState(menus[0]?.title ?? null);
+  const user = useAuth();
+
 
   const handleGroupClick = (title) => {
     // ถ้าคลิก group เดิมที่เปิดอยู่ → toggle ปิด, ไม่งั้น → เปิด group นี้
@@ -77,16 +82,22 @@ export default function AdminLayout({ children }) {
         {/* Menu */}
         <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
           {menus.map((group) => {
+            const visibleItems = group.items.filter((item) => {
+              if (!item.permission) return true;
+              return hasPermission(user, item.permission);
+            });
+
+            if (visibleItems.length === 0) return null;
+
             const isOpen = openGroup === group.title;
+
             return (
               <div key={group.title} className="mb-1">
-
-                {/* Group header — คลิกได้ทุก group */}
                 <button
                   type="button"
                   onClick={() => handleGroupClick(group.title)}
                   className={`w-full flex items-center justify-between px-2 py-1.5 rounded-lg
-                            hover:bg-white/5 transition-colors group/header`}
+                              hover:bg-white/5 transition-colors group/header`}
                 >
                   <span className="text-[14px] font-semibold tracking-widest text-slate-500 uppercase">
                     {group.title}
@@ -96,23 +107,28 @@ export default function AdminLayout({ children }) {
                                 ${isOpen ? "rotate-180" : "rotate-0"}`}
                   >
                     <svg
-                      width="20" height="20" viewBox="0 0 10 10"
-                      fill="none" stroke="currentColor"
-                      strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"
+                      width="20"
+                      height="20"
+                      viewBox="0 0 10 10"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
                     >
                       <path d="M2 3.5L5 6.5L8 3.5" />
                     </svg>
                   </span>
                 </button>
 
-                {/* Items — accordion slide */}
                 <div
                   className={`overflow-hidden transition-all duration-300 ease-in-out
                               ${isOpen ? "max-h-[500px] opacity-100" : "max-h-0 opacity-0"}`}
                 >
                   <div className="space-y-0.5 pt-0.5">
-                    {group.items.map((item) => {
+                    {visibleItems.map((item) => {
                       const active = isActiveMenu(item.href);
+
                       return (
                         <Link
                           key={item.href}
@@ -126,14 +142,13 @@ export default function AdminLayout({ children }) {
                           <span className="text-base">{item.icon}</span>
                           <span>{item.label}</span>
                           {active && (
-                            <span className="ml-auto w-1.5 h-1.5 rounded-full bg-emerald-300" />
+                            <span className="ml-auto h-1.5 w-1.5 rounded-full bg-emerald-300" />
                           )}
                         </Link>
                       );
                     })}
                   </div>
                 </div>
-
               </div>
             );
           })}
@@ -169,7 +184,7 @@ export default function AdminLayout({ children }) {
 
           <div className="flex items-center gap-3">
             <Tag color="green" className="rounded-full px-3 text-xs font-medium border-0 bg-emerald-50 text-emerald-700">
-              Admin
+              {user?.full_name || user?.employee_name || user?.username || "-"}
             </Tag>
 
             <div className="w-px h-5 bg-slate-200" />

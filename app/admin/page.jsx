@@ -11,7 +11,7 @@ export default function AdminPage() {
       <div className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-800">
-            Admin Dashboard
+            Dashboard
           </h1>
           <p className="text-sm text-slate-500 mt-1">
             Employee Master System

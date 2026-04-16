@@ -11,6 +11,7 @@ export async function PATCH(req, { params }) {
     const body = await req.json();
 
     const employee_id = body?.employee_id || null;
+    const role_id = body?.role_id || null;
     const username = body?.username?.trim();
     const password = body?.password?.trim() || null;
     const is_active = body?.is_active ?? true;
@@ -22,13 +23,33 @@ export async function PATCH(req, { params }) {
       );
     }
 
+    if (password && password.length < 6) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร",
+        },
+        { status: 400 }
+      );
+    }
+
     const { data: oldUser, error: oldUserError } = await supabaseAdmin
       .from("user_accounts")
-      .select("id, auth_user_id")
+      .select("id, auth_user_id, username")
       .eq("id", id)
       .single();
 
     if (oldUserError) throw oldUserError;
+
+    if (oldUser.username?.toLowerCase() === "admin") {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "ไม่สามารถแก้ไขผู้ใช้งาน admin ได้",
+        },
+        { status: 400 }
+      );
+    }
 
     const { data: existingUser, error: existingUserError } =
       await supabaseAdmin
@@ -66,10 +87,7 @@ export async function PATCH(req, { params }) {
       }
     }
 
-    const fakeEmail = `${username.toLowerCase()}@local.user`;
-
     const updateAuthPayload = {
-      email: fakeEmail,
       user_metadata: {
         username,
       },
@@ -80,16 +98,19 @@ export async function PATCH(req, { params }) {
       updateAuthPayload.password = password;
     }
 
-    const { error: authUpdateError } =
-      await supabaseAdmin.auth.admin.updateUserById(
-        oldUser.auth_user_id,
-        updateAuthPayload
-      );
+    if (oldUser.auth_user_id) {
+      const { error: authUpdateError } =
+        await supabaseAdmin.auth.admin.updateUserById(
+          oldUser.auth_user_id,
+          updateAuthPayload
+        );
 
-    if (authUpdateError) throw authUpdateError;
+      if (authUpdateError) throw authUpdateError;
+    }
 
     const updatePayload = {
       employee_id,
+      role_id,
       username,
       is_active,
       updated_at: new Date().toISOString(),
@@ -113,6 +134,7 @@ export async function PATCH(req, { params }) {
         id,
         auth_user_id,
         employee_id,
+        role_id,
         username,
         is_active,
         last_login_at,
@@ -121,6 +143,10 @@ export async function PATCH(req, { params }) {
           employee_code,
           first_name_th,
           last_name_th
+        ),
+        roles (
+          role_code,
+          role_name
         )
       `)
       .eq("id", id)
@@ -135,6 +161,9 @@ export async function PATCH(req, { params }) {
         id: data.id,
         auth_user_id: data.auth_user_id,
         employee_id: data.employee_id || "",
+        role_id: data.role_id || "",
+        role_code: data.roles?.role_code || "",
+        role_name: data.roles?.role_name || "-",
         username: data.username,
         is_active: data.is_active,
         last_login_at: data.last_login_at,

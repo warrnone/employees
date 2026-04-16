@@ -8,7 +8,7 @@ import bcrypt from "bcryptjs";
 export async function GET(req) {
   try {
     const { searchParams } = new URL(req.url);
-    const search = searchParams.get("search")?.trim().toLowerCase() || "";
+    const search = searchParams.get("search")?.trim()?.toLowerCase() || "";
 
     const { data, error } = await supabaseAdmin
       .from("user_accounts")
@@ -16,6 +16,7 @@ export async function GET(req) {
         id,
         auth_user_id,
         employee_id,
+        role_id,
         username,
         is_active,
         last_login_at,
@@ -24,6 +25,10 @@ export async function GET(req) {
           employee_code,
           first_name_th,
           last_name_th
+        ),
+        roles (
+          role_code,
+          role_name
         )
       `)
       .order("created_at", { ascending: false });
@@ -34,7 +39,10 @@ export async function GET(req) {
       id: item.id,
       auth_user_id: item.auth_user_id,
       employee_id: item.employee_id || "",
+      role_id: item.role_id || "",
       username: item.username,
+      role_code: item.roles?.role_code || "",
+      role_name: item.roles?.role_name || "-",
       is_active: item.is_active,
       last_login_at: item.last_login_at,
       created_at: item.created_at,
@@ -48,7 +56,9 @@ export async function GET(req) {
           return (
             item.username?.toLowerCase().includes(search) ||
             item.employee_code?.toLowerCase().includes(search) ||
-            item.employee_name?.toLowerCase().includes(search)
+            item.employee_name?.toLowerCase().includes(search) ||
+            item.role_code?.toLowerCase().includes(search) ||
+            item.role_name?.toLowerCase().includes(search)
           );
         })
       : mappedData;
@@ -78,6 +88,7 @@ export async function POST(req) {
     const body = await req.json();
 
     const employee_id = body?.employee_id || null;
+    const role_id = body?.role_id || null;
     const username = body?.username?.trim();
     const password = body?.password?.trim();
     const is_active = body?.is_active ?? true;
@@ -92,6 +103,16 @@ export async function POST(req) {
     if (!password) {
       return NextResponse.json(
         { success: false, error: "กรุณากรอกรหัสผ่าน" },
+        { status: 400 }
+      );
+    }
+
+    if (password.length < 6) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร",
+        },
         { status: 400 }
       );
     }
@@ -130,7 +151,7 @@ export async function POST(req) {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const fakeEmail = `${username.toLowerCase()}@local.user`;
+    const fakeEmail = `${username.toLowerCase()}_${Date.now()}@local.user`;
 
     const { data: createdAuthUser, error: authError } =
       await supabaseAdmin.auth.admin.createUser({
@@ -142,7 +163,21 @@ export async function POST(req) {
         },
       });
 
-    if (authError) throw authError;
+    if (authError) {
+      const message = authError.message || "";
+
+      if (message.toLowerCase().includes("already been registered")) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "บัญชี auth ของ Username นี้มีอยู่แล้วในระบบ กรุณาใช้ Username อื่น",
+          },
+          { status: 400 }
+        );
+      }
+
+      throw authError;
+    }
 
     const auth_user_id = createdAuthUser.user?.id;
 
@@ -156,6 +191,7 @@ export async function POST(req) {
         {
           auth_user_id,
           employee_id,
+          role_id,
           username,
           is_active,
           password_hash: hashedPassword,
@@ -165,6 +201,7 @@ export async function POST(req) {
         id,
         auth_user_id,
         employee_id,
+        role_id,
         username,
         is_active,
         last_login_at,
@@ -173,6 +210,10 @@ export async function POST(req) {
           employee_code,
           first_name_th,
           last_name_th
+        ),
+        roles (
+          role_code,
+          role_name
         )
       `)
       .single();
@@ -189,6 +230,9 @@ export async function POST(req) {
         id: data.id,
         auth_user_id: data.auth_user_id,
         employee_id: data.employee_id || "",
+        role_id: data.role_id || "",
+        role_code: data.roles?.role_code || "",
+        role_name: data.roles?.role_name || "-",
         username: data.username,
         is_active: data.is_active,
         last_login_at: data.last_login_at,

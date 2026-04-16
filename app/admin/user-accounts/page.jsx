@@ -6,6 +6,7 @@ import { swalConfirm, swalError, swalSuccess } from "../../components/Swal";
 
 const initialForm = {
   employee_id: "",
+  role_id: "",
   username: "",
   password: "",
   is_active: true,
@@ -17,6 +18,7 @@ export default function UserAccountsPage() {
   const [search, setSearch] = useState("");
   const [userAccounts, setUserAccounts] = useState([]);
   const [employees, setEmployees] = useState([]);
+  const [roles, setRoles] = useState([]);
 
   const [loading, setLoading] = useState(true);
   const [employeeLoading, setEmployeeLoading] = useState(false);
@@ -79,8 +81,24 @@ export default function UserAccountsPage() {
     }
   };
 
+  const loadRoles = async () => {
+    try {
+      const res = await fetch("/api/admin/roles", { cache: "no-store" });
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data?.error || "Load roles failed");
+      }
+
+      setRoles(data.data || []);
+    } catch (err) {
+      console.error(err);
+      swalError(err.message || "ไม่สามารถโหลดข้อมูล Role ได้");
+    }
+  };
+
   useEffect(() => {
-    loadUserAccounts().catch((err) => {
+    Promise.all([loadUserAccounts(), loadRoles()]).catch((err) => {
       console.error(err);
       swalError(err.message || "ไม่สามารถโหลดข้อมูลได้");
     });
@@ -115,6 +133,7 @@ export default function UserAccountsPage() {
     setEditingUser(item);
     setForm({
       employee_id: item.employee_id || "",
+      role_id: item.role_id || "",
       username: item.username || "",
       password: "",
       is_active: !!item.is_active,
@@ -165,6 +184,7 @@ export default function UserAccountsPage() {
         },
         body: JSON.stringify({
           employee_id: form.employee_id || null,
+          role_id: form.role_id || null,
           username: form.username.trim(),
           password: form.password.trim() || null,
           is_active: form.is_active,
@@ -523,6 +543,32 @@ export default function UserAccountsPage() {
                       }`,
                     };
                   })}
+                  className="w-full"
+                  size="large"
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="mb-2 block text-sm font-medium text-slate-700">
+                  Role
+                </label>
+
+                <Select
+                  showSearch
+                  allowClear
+                  optionFilterProp="label"
+                  placeholder="เลือก Role"
+                  value={form.role_id || undefined}
+                  onChange={(value) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      role_id: value ?? "",
+                    }))
+                  }
+                  options={roles.map((role) => ({
+                    value: role.id,
+                    label: `${role.role_code} - ${role.role_name}`,
+                  }))}
                   className="w-full"
                   size="large"
                 />
