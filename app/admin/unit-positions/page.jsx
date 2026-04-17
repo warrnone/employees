@@ -3,6 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { Select } from "antd";
 import { swalSuccess, swalError, swalConfirm } from "../../components/Swal";
+import { useRouter } from "next/navigation";
+import useAuth from "@/hooks/useAuth";
+import { hasPermission } from "@/lib/permissions";
 
 const initialForm = {
   unit_id: "",
@@ -25,6 +28,29 @@ export default function UnitPositionsPage() {
   const [openModal, setOpenModal] = useState(false);
   const [editingRow, setEditingRow] = useState(null);
   const [form, setForm] = useState(initialForm);
+
+  // #region Permission
+  const router = useRouter();
+  const { user, loadingUser } = useAuth();
+  const canView = hasPermission(user, "unit_positions.view");
+  const canCreate = hasPermission(user, "unit_positions.create");
+  const canEdit = hasPermission(user, "unit_positions.edit");
+  const canDelete = hasPermission(user, "unit_positions.delete");
+
+  
+  useEffect(() => {
+    if (loadingUser) return;
+
+    if (!user) {
+      router.replace("/login");
+      return;
+    }
+
+    if (!canView) {
+      router.replace("/admin");
+    }
+  }, [user, canView, loadingUser, router]);
+  // #endregion
 
   const loadUnits = async () => {
     try {
@@ -115,11 +141,21 @@ export default function UnitPositionsPage() {
   };
 
   const handleOpenCreate = () => {
+     if (!canCreate) {
+      swalError("คุณไม่มีสิทธิ์เพิ่มข้อมูลกำหนดตำแหน่งตามหน่วย");
+      return;
+    }
+
     resetForm();
     setOpenModal(true);
   };
 
   const handleOpenEdit = (row) => {
+    if (!canEdit) {
+      swalError("คุณไม่มีสิทธิ์แก้ไขข้อมูลกำหนดตำแหน่งตามหน่วย");
+      return;
+    }
+    
     setEditingRow(row);
     setForm({
       unit_id: row.unit_id || "",
@@ -136,6 +172,19 @@ export default function UnitPositionsPage() {
   };
 
   const handleSave = async () => {
+
+    const isEdit = !!editingRow;
+    if (isEdit && !canEdit) {
+      swalError("คุณไม่มีสิทธิ์แก้ไขข้อมูลกำหนดตำแหน่งตามหน่วย");
+      return;
+    }
+
+    if (!isEdit && !canCreate) {
+      swalError("คุณไม่มีสิทธิ์เพิ่มข้อมูลกำหนดตำแหน่งตามหน่วย");
+      return;
+    }
+
+
     if (!form.unit_id) {
       swalError("กรุณาเลือกหน่วยงาน");
       return;
@@ -201,6 +250,11 @@ export default function UnitPositionsPage() {
   };
 
   const handleDelete = async (row) => {
+    if (!canDelete) {
+      swalError("คุณไม่มีสิทธิ์ลบข้อมูลกำหนดตำแหน่งตามหน่วย");
+      return;
+    }
+    
     const confirmed = await swalConfirm(
       `ต้องการลบการผูกตำแหน่ง "${row.position_name}" กับหน่วย "${row.unit_name}" ใช่หรือไม่?`
     );
@@ -259,6 +313,10 @@ export default function UnitPositionsPage() {
     }));
   }, [positions]);
 
+  if (loadingUser) return null;
+  if (!user) return null;
+  if (!canView) return null;
+
   return (
     <div className="space-y-6">
       <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -270,15 +328,22 @@ export default function UnitPositionsPage() {
             <p className="mt-1 text-sm text-slate-500">
               จัดการความสัมพันธ์ระหว่างหน่วยงาน ตำแหน่ง และจำนวนอัตรา
             </p>
+            {!canCreate && !canEdit && !canDelete ? (
+              <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+                คุณมีสิทธิ์ดูข้อมูลได้อย่างเดียว ไม่สามารถเพิ่ม แก้ไข หรือลบข้อมูลกำหนดตำแหน่งตามหน่วยได้
+              </div>
+            ) : null}
           </div>
 
-          <button
-            type="button"
-            onClick={handleOpenCreate}
-            className="rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
-          >
-            + เพิ่มข้อมูล
-          </button>
+          {canCreate && (
+            <button
+              type="button"
+              onClick={handleOpenCreate}
+              className="rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+            >
+              + เพิ่มข้อมูล
+            </button>
+          )}
         </div>
       </div>
 
@@ -374,29 +439,37 @@ export default function UnitPositionsPage() {
                     </td>
 
                     <td className="px-6 py-4">
-                      <div className="flex justify-end gap-2">
-                        <button
-                          type="button"
-                          onClick={() => handleOpenEdit(row)}
-                          className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100"
-                        >
-                          Edit
-                        </button>
+                      {(canEdit || canDelete) ? (
+                        <div className="flex justify-end gap-2">
+                          {canEdit && (
+                            <button
+                              type="button"
+                              onClick={() => handleOpenEdit(row)}
+                              className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100"
+                            >
+                              Edit
+                            </button>
+                          )}
 
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(row)}
-                          disabled={deletingId === row.id}
-                          className={`rounded-xl border px-3 py-2 text-xs font-medium ${
-                            deletingId === row.id
-                              ? "cursor-not-allowed border-slate-200 text-slate-400"
-                              : "border-red-200 text-red-600 hover:bg-red-50"
-                          }`}
-                        >
-                          {deletingId === row.id ? "Deleting..." : "Delete"}
-                        </button>
-                      </div>
-                    </td>
+                          {canDelete && (
+                            <button
+                              type="button"
+                              onClick={() => handleDelete(row)}
+                              disabled={deletingId === row.id}
+                              className={`rounded-xl border px-3 py-2 text-xs font-medium ${
+                                deletingId === row.id
+                                  ? "cursor-not-allowed border-slate-200 text-slate-400"
+                                  : "border-red-200 text-red-600 hover:bg-red-50"
+                              }`}
+                            >
+                              {deletingId === row.id ? "Deleting..." : "Delete"}
+                            </button>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="text-right text-slate-400">-</div>
+                      )}
+                    </td>    
                   </tr>
                 ))
               ) : (
@@ -508,18 +581,20 @@ export default function UnitPositionsPage() {
                 Cancel
               </button>
 
-              <button
-                type="button"
-                onClick={handleSave}
-                disabled={saving}
-                className={`rounded-2xl px-5 py-3 text-sm font-semibold text-white ${
-                  saving
-                    ? "cursor-not-allowed bg-slate-400"
-                    : "bg-slate-900 hover:bg-slate-800"
-                }`}
-              >
-                {saving ? "Saving..." : editingRow ? "Update" : "Save"}
-              </button>
+              {((editingRow && canEdit) || (!editingRow && canCreate)) && (
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  disabled={saving}
+                  className={`rounded-2xl px-5 py-3 text-sm font-semibold text-white ${
+                    saving
+                      ? "cursor-not-allowed bg-slate-400"
+                      : "bg-slate-900 hover:bg-slate-800"
+                  }`}
+                >
+                  {saving ? "Saving..." : editingRow ? "Update" : "Save"}
+                </button>
+              )}
             </div>
           </div>
         </div>

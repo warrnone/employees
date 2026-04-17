@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { sidebarMenus } from "./components/sidebarMenus";
 import { swalSuccess, swalError, swalConfirm } from "../components/Swal";
 import { Button, Tooltip, Tag } from "antd";
@@ -14,10 +14,12 @@ export default function AdminLayout({ children }) {
   const pathname = usePathname();
   const router = useRouter();
   const [loggingOut, setLoggingOut] = useState(false);
-  const menus = sidebarMenus;
-  const [openGroup, setOpenGroup] = useState(menus[0]?.title ?? null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const user = useAuth();
+
+  const menus = useMemo(() => sidebarMenus, []);
+  const [openGroup, setOpenGroup] = useState(menus[0]?.title ?? null);
+
+  const {user,loadingUser,setUser,} = useAuth();
 
   const handleGroupClick = (title) => {
     setOpenGroup((prev) => (prev === title ? null : title));
@@ -33,14 +35,27 @@ export default function AdminLayout({ children }) {
     if (loggingOut) return;
 
     setLoggingOut(true);
+
     try {
-      await fetch("/api/auth/logout", { method: "POST" });
+      const res = await fetch("/api/auth/logout", {
+        method: "POST",
+      });
+
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        throw new Error(data?.error || "Logout failed");
+      }
+
+      localStorage.removeItem("employee_user");
+      setUser(null);
+
       swalSuccess("Logout สำเร็จ");
       router.push("/login");
       router.refresh();
     } catch (error) {
+      console.error("LOGOUT_ERROR:", error);
       swalError(error?.message || "Logout failed");
-      console.error("Logout failed:", error);
     } finally {
       setLoggingOut(false);
     }
@@ -56,10 +71,58 @@ export default function AdminLayout({ children }) {
       group.items.some((item) => isActiveMenu(item.href))
     );
 
-    if (activeGroup) setOpenGroup(activeGroup.title);
+    if (activeGroup) {
+      setOpenGroup(activeGroup.title);
+    }
 
     setMobileMenuOpen(false);
   }, [pathname, menus]);
+
+  if (loadingUser) {
+    return (
+      <div className="min-h-screen bg-slate-100 flex">
+        <aside className="hidden lg:flex fixed top-0 left-0 h-screen w-64 bg-[#0a1628] text-white flex-col">
+          <div className="px-5 py-5 border-b border-white/10">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-[#0f6e56] flex items-center justify-center text-white text-xs font-bold">
+                HW
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-white leading-tight">
+                  Employee Master
+                </p>
+                <p className="text-[10px] text-slate-400 mt-0.5">
+                  Hanuman World · Admin
+                </p>
+              </div>
+            </div>
+          </div>
+        </aside>
+
+        <div className="flex-1 flex flex-col min-w-0 lg:ml-64">
+          <header className="h-14 bg-white border-b border-slate-200 flex items-center justify-between px-4 lg:px-6">
+            <div>
+              <h2 className="text-sm font-semibold text-slate-800">
+                Admin Panel
+              </h2>
+              <p className="text-xs text-slate-400">
+                Manage employee master data
+              </p>
+            </div>
+          </header>
+
+          <main className="flex-1 p-6">
+            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+              <div className="flex items-center gap-3 text-slate-500">
+                <LoadingOutlined spin />
+                <span>กำลังโหลดข้อมูลผู้ใช้งาน...</span>
+              </div>
+            </div>
+          </main>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-100 flex">
@@ -230,7 +293,7 @@ export default function AdminLayout({ children }) {
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
-            <Tag className="rounded-full px-3 text-xs font-medium border-0 bg-emerald-50 text-emerald-700 m-0 max-w-[140px] sm:max-w-none truncate">
+            <Tag className="rounded-full px-3 text-xs font-medium border-0 bg-emerald-50 text-emerald-700 m-0 max-w-[180px] sm:max-w-none truncate">
               {user?.full_name || user?.employee_name || user?.username || "-"}
             </Tag>
 

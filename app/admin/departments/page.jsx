@@ -3,6 +3,9 @@
 import { useEffect, useState } from "react";
 import { swalSuccess, swalError, swalConfirm } from "../../components/Swal";
 import { Tooltip } from "antd";
+import { useRouter } from "next/navigation";
+import useAuth from "@/hooks/useAuth";
+import { hasPermission } from "@/lib/permissions";
 
 const initialForm = {
   code: "",
@@ -23,6 +26,29 @@ export default function DepartmentsPage() {
   const [form, setForm] = useState(initialForm);
   const [openModal, setOpenModal] = useState(false);
   const [editingDepartment, setEditingDepartment] = useState(null);
+
+  // #region Permission
+  const router = useRouter();
+  const { user, loadingUser } = useAuth();
+  const canView = hasPermission(user, "departments.view");
+  const canCreate = hasPermission(user, "departments.create");
+  const canEdit = hasPermission(user, "departments.edit");
+  const canDelete = hasPermission(user, "departments.delete");
+
+  
+  useEffect(() => {
+    if (loadingUser) return;
+
+    if (!user) {
+      router.replace("/login");
+      return;
+    }
+
+    if (!canView) {
+      router.replace("/admin");
+    }
+  }, [user, canView, loadingUser, router]);
+  // #endregion
 
   const loadBranches = async () => {
     try {
@@ -101,11 +127,21 @@ export default function DepartmentsPage() {
   };
 
   const handleOpenCreate = () => {
+    if (!canCreate) {
+      swalError("คุณไม่มีสิทธิ์เพิ่มแผนก");
+      return;
+    }
+
     resetForm();
     setOpenModal(true);
   };
 
   const handleOpenEdit = (department) => {
+    if (!canEdit) {
+      swalError("คุณไม่มีสิทธิ์แก้ไขแผนก");
+      return;
+    }
+
     setEditingDepartment(department);
 
     setForm({
@@ -124,6 +160,19 @@ export default function DepartmentsPage() {
   };
 
   const handleSave = async () => {
+
+    const isEdit = !!editingDepartment;
+
+    if (isEdit && !canEdit) {
+      swalError("คุณไม่มีสิทธิ์แก้ไขแผนก");
+      return;
+    }
+
+    if (!isEdit && !canCreate) {
+      swalError("คุณไม่มีสิทธิ์เพิ่มแผนก");
+      return;
+    }
+
     if (!form.code.trim() || !form.name.trim()) {
       swalError("กรุณากรอกรหัสแผนกและชื่อแผนก");
       return;
@@ -194,6 +243,11 @@ export default function DepartmentsPage() {
   };
 
   const handleDelete = async (department) => {
+     if (!canDelete) {
+      swalError("คุณไม่มีสิทธิ์ลบแผนก");
+      return;
+    }
+
     const confirmed = await swalConfirm(
       `ต้องการลบแผนก "${department.name}" ใช่หรือไม่?`
     );
@@ -270,6 +324,10 @@ export default function DepartmentsPage() {
     );
   };
 
+  if (loadingUser) return null;
+  if (!user) return null;
+  if (!canView) return null;
+
   return (
     <div className="space-y-6">
       <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -279,15 +337,22 @@ export default function DepartmentsPage() {
             <p className="mt-1 text-sm text-slate-500">
               จัดการข้อมูลแผนกในแต่ละสาขา
             </p>
+            {!canCreate && !canEdit && !canDelete ? (
+              <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+                คุณมีสิทธิ์ดูข้อมูลได้อย่างเดียว ไม่สามารถเพิ่ม แก้ไข หรือลบแผนกได้
+              </div>
+            ) : null}
           </div>
 
-          <button
-            type="button"
-            onClick={handleOpenCreate}
-            className="rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
-          >
-            + เพิ่มแผนก
-          </button>
+          {canCreate && (
+            <button
+              type="button"
+              onClick={handleOpenCreate}
+              className="rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+            >
+              + เพิ่มแผนก
+            </button>
+          )}
         </div>
       </div>
 
@@ -385,34 +450,42 @@ export default function DepartmentsPage() {
                     </td>
 
                     <td className="px-6 py-4">
-                      <div className="flex justify-end gap-2">
-                        <button
-                          type="button"
-                          onClick={() => handleOpenEdit(department)}
-                          className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100"
-                        >
-                          Edit
-                        </button>
+                      {(canEdit || canDelete) ? (
+                        <div className="flex justify-end gap-2">
+                          {canEdit && (
+                            <button
+                              type="button"
+                              onClick={() => handleOpenEdit(department)}
+                              className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100"
+                            >
+                              Edit
+                            </button>
+                          )}
 
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(department)}
-                          disabled={deletingId === department.id}
-                          className={`rounded-xl border px-3 py-2 text-xs font-medium ${
-                            deletingId === department.id
-                              ? "cursor-not-allowed border-slate-200 text-slate-400"
-                              : "border-red-200 text-red-600 hover:bg-red-50"
-                          }`}
-                        >
-                          {deletingId === department.id ? "Deleting..." : "Delete"}
-                        </button>
-                      </div>
+                          {canDelete && (
+                            <button
+                              type="button"
+                              onClick={() => handleDelete(department)}
+                              disabled={deletingId === department.id}
+                              className={`rounded-xl border px-3 py-2 text-xs font-medium ${
+                                deletingId === department.id
+                                  ? "cursor-not-allowed border-slate-200 text-slate-400"
+                                  : "border-red-200 text-red-600 hover:bg-red-50"
+                              }`}
+                            >
+                              {deletingId === department.id ? "Deleting..." : "Delete"}
+                            </button>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="text-right text-slate-400">-</div>
+                      )}
                     </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={5} className="px-6 py-10 text-center text-slate-400">
+                  <td colSpan={6} className="px-6 py-10 text-center text-slate-400">
                     ไม่พบข้อมูลแผนก
                   </td>
                 </tr>
@@ -492,6 +565,7 @@ export default function DepartmentsPage() {
                             {selectedBranch?.branch_name || selectedId}
                             <button
                               type="button"
+                              disabled={editingDepartment ? !canEdit : !canCreate}
                               onClick={() =>
                                 setForm((prev) => ({
                                   ...prev,
@@ -529,6 +603,7 @@ export default function DepartmentsPage() {
                             <input
                               type="checkbox"
                               checked={isChecked}
+                              disabled={editingDepartment ? !canEdit : !canCreate}
                               onChange={(e) => {
                                 const value = branch.id;
                                 const nextIds = e.target.checked
@@ -605,18 +680,20 @@ export default function DepartmentsPage() {
                 Cancel
               </button>
 
-              <button
-                type="button"
-                onClick={handleSave}
-                disabled={saving}
-                className={`rounded-2xl px-5 py-3 text-sm font-semibold text-white ${
-                  saving
-                    ? "cursor-not-allowed bg-slate-400"
-                    : "bg-slate-900 hover:bg-slate-800"
-                }`}
-              >
-                {saving ? "Saving..." : editingDepartment ? "Update" : "Save"}
-              </button>
+              {((editingDepartment && canEdit) || (!editingDepartment && canCreate)) && (
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  disabled={saving}
+                  className={`rounded-2xl px-5 py-3 text-sm font-semibold text-white ${
+                    saving
+                      ? "cursor-not-allowed bg-slate-400"
+                      : "bg-slate-900 hover:bg-slate-800"
+                  }`}
+                >
+                  {saving ? "Saving..." : editingDepartment ? "Update" : "Save"}
+                </button>
+              )}
             </div>
           </div>
         </div>

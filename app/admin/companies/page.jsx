@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { swalSuccess, swalError, swalConfirm,} from "../../components/Swal";
+import { useRouter } from "next/navigation";
+import useAuth from "@/hooks/useAuth";
+import { hasPermission } from "@/lib/permissions";
 
 const initialForm = {
   code: "",
@@ -24,6 +27,29 @@ export default function CompaniesPage() {
   const [form, setForm] = useState(initialForm);
   const [openModal, setOpenModal] = useState(false);
   const [editingCompany, setEditingCompany] = useState(null);
+
+  // #region Permission
+  const router = useRouter();
+  const { user, loadingUser } = useAuth();
+  const canView = hasPermission(user, "companies.view");
+  const canCreate = hasPermission(user, "companies.create");
+  const canEdit = hasPermission(user, "companies.edit");
+  const canDelete = hasPermission(user, "companies.delete");
+
+  
+  useEffect(() => {
+    if (loadingUser) return;
+
+    if (!user) {
+      router.replace("/login");
+      return;
+    }
+
+    if (!canView) {
+      router.replace("/admin");
+    }
+  }, [user, canView, loadingUser, router]);
+  // #endregion
 
   const loadCompanies = async (keyword = "") => {
     try {
@@ -82,11 +108,19 @@ export default function CompaniesPage() {
   };
 
   const handleOpenCreate = () => {
+    if (!canCreate) {
+      swalError("คุณไม่มีสิทธิ์เพิ่มบริษัท");
+      return;
+    }
     resetForm();
     setOpenModal(true);
   };
 
   const handleOpenEdit = (company) => {
+    if (!canEdit) {
+      swalError("คุณไม่มีสิทธิ์แก้ไขบริษัท");
+      return;
+    }
     setEditingCompany(company);
     setForm({
       code: company.code || "",
@@ -106,6 +140,18 @@ export default function CompaniesPage() {
   };
 
   const handleSave = async () => {
+
+    const isEdit = !!editingCompany;
+    if (isEdit && !canEdit) {
+      swalError("คุณไม่มีสิทธิ์แก้ไขบริษัท");
+      return;
+    }
+
+    if (!isEdit && !canCreate) {
+      swalError("คุณไม่มีสิทธิ์เพิ่มบริษัท");
+      return;
+    }
+
     if (!form.code.trim() || !form.name_th.trim()) {
       swalError("กรุณากรอกรหัสบริษัทและชื่อบริษัท");
       return;
@@ -172,6 +218,11 @@ export default function CompaniesPage() {
   };
 
   const handleDelete = async (company) => {
+    if (!canDelete) {
+      swalError("คุณไม่มีสิทธิ์ลบบริษัท");
+      return;
+    }
+
     const confirmed = await swalConfirm(
       `ต้องการลบบริษัท "${company.name_th}" ใช่หรือไม่?`
     );
@@ -200,6 +251,10 @@ export default function CompaniesPage() {
     }
   };
 
+  if (loadingUser) return null;
+  if (!user) return null;
+  if (!canView) return null;
+
   return (
     <div className="space-y-6">
       <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm">
@@ -209,15 +264,22 @@ export default function CompaniesPage() {
             <p className="text-sm text-slate-500 mt-1">
               จัดการข้อมูลบริษัทสำหรับใช้เชื่อมกับสังกัดในระบบ Employee Master
             </p>
+            {!canCreate && !canEdit && !canDelete ? (
+              <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+                คุณมีสิทธิ์ดูข้อมูลได้อย่างเดียว ไม่สามารถเพิ่ม แก้ไข หรือลบบริษัทได้
+              </div>
+            ) : null}
           </div>
 
-          <button
-            type="button"
-            onClick={handleOpenCreate}
-            className="rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white hover:bg-slate-800 transition"
-          >
-            + เพิ่มบริษัท
-          </button>
+          {canCreate && (
+            <button
+              type="button"
+              onClick={handleOpenCreate}
+              className="rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white hover:bg-slate-800 transition"
+            >
+              + เพิ่มบริษัท
+            </button>
+          )}
         </div>
       </div>
 
@@ -326,35 +388,43 @@ export default function CompaniesPage() {
                     </td>
 
                     <td className="px-6 py-4">
-                      <div className="flex justify-end gap-2">
-                        <button
-                          type="button"
-                          onClick={() => handleOpenEdit(company)}
-                          className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100"
-                        >
-                          Edit
-                        </button>
+                      {(canEdit || canDelete) ? (
+                        <div className="flex justify-end gap-2">
+                          {canEdit && (
+                            <button
+                              type="button"
+                              onClick={() => handleOpenEdit(company)}
+                              className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100"
+                            >
+                              Edit
+                            </button>
+                          )}
 
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(company)}
-                          disabled={deletingId === company.id}
-                          className={`rounded-xl border px-3 py-2 text-xs font-medium ${
-                            deletingId === company.id
-                              ? "border-slate-200 text-slate-400 cursor-not-allowed"
-                              : "border-red-200 text-red-600 hover:bg-red-50"
-                          }`}
-                        >
-                          {deletingId === company.id ? "Deleting..." : "Delete"}
-                        </button>
-                      </div>
+                          {canDelete && (
+                            <button
+                              type="button"
+                              onClick={() => handleDelete(company)}
+                              disabled={deletingId === company.id}
+                              className={`rounded-xl border px-3 py-2 text-xs font-medium ${
+                                deletingId === company.id
+                                  ? "border-slate-200 text-slate-400 cursor-not-allowed"
+                                  : "border-red-200 text-red-600 hover:bg-red-50"
+                              }`}
+                            >
+                              {deletingId === company.id ? "Deleting..." : "Delete"}
+                            </button>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="text-right text-slate-400">-</div>
+                      )}
                     </td>
                   </tr>
                 ))
               ) : (
                 <tr>
                   <td
-                    colSpan={6}
+                    colSpan={7}
                     className="px-6 py-10 text-center text-slate-400"
                   >
                     ไม่พบข้อมูลบริษัท
@@ -518,18 +588,20 @@ export default function CompaniesPage() {
                 Cancel
               </button>
 
-              <button
-                type="button"
-                onClick={handleSave}
-                disabled={saving}
-                className={`rounded-2xl px-5 py-3 text-sm font-semibold text-white ${
-                  saving
-                    ? "bg-slate-400 cursor-not-allowed"
-                    : "bg-slate-900 hover:bg-slate-800"
-                }`}
-              >
-                {saving ? "Saving..." : editingCompany ? "Update" : "Save"}
-              </button>
+              {((editingCompany && canEdit) || (!editingCompany && canCreate)) && (
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  disabled={saving}
+                  className={`rounded-2xl px-5 py-3 text-sm font-semibold text-white ${
+                    saving
+                      ? "bg-slate-400 cursor-not-allowed"
+                      : "bg-slate-900 hover:bg-slate-800"
+                  }`}
+                >
+                  {saving ? "Saving..." : editingCompany ? "Update" : "Save"}
+                </button>
+              )}
             </div>
           </div>
         </div>

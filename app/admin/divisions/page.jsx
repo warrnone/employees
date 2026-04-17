@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { swalSuccess, swalError, swalConfirm } from "../../components/Swal";
+import { useRouter } from "next/navigation";
+import useAuth from "@/hooks/useAuth";
+import { hasPermission } from "@/lib/permissions";
 
 const initialForm = {
   code: "",
@@ -23,6 +26,29 @@ export default function DivisionsPage() {
   const [openModal, setOpenModal] = useState(false);
   const [editingDivision, setEditingDivision] = useState(null);
   const [form, setForm] = useState(initialForm);
+
+  // #region Permission
+  const router = useRouter();
+  const { user, loadingUser } = useAuth();
+  const canView = hasPermission(user, "divisions.view");
+  const canCreate = hasPermission(user, "divisions.create");
+  const canEdit = hasPermission(user, "divisions.edit");
+  const canDelete = hasPermission(user, "divisions.delete");
+
+  
+  useEffect(() => {
+    if (loadingUser) return;
+
+    if (!user) {
+      router.replace("/login");
+      return;
+    }
+
+    if (!canView) {
+      router.replace("/admin");
+    }
+  }, [user, canView, loadingUser, router]);
+  // #endregion
 
   const loadDepartments = async () => {
     try {
@@ -101,11 +127,19 @@ export default function DivisionsPage() {
   };
 
   const handleOpenCreate = () => {
+    if (!canCreate) {
+      swalError("คุณไม่มีสิทธิ์เพิ่มฝ่าย");
+      return;
+    }
     resetForm();
     setOpenModal(true);
   };
 
   const handleOpenEdit = (division) => {
+    if (!canEdit) {
+      swalError("คุณไม่มีสิทธิ์แก้ไขฝ่าย");
+      return;
+    }
     setEditingDivision(division);
 
     setForm({
@@ -124,6 +158,17 @@ export default function DivisionsPage() {
   };
 
   const handleSave = async () => {
+    const isEdit = !!editingDivision;
+    if (isEdit && !canEdit) {
+      swalError("คุณไม่มีสิทธิ์แก้ไขฝ่าย");
+      return;
+    }
+
+    if (!isEdit && !canCreate) {
+      swalError("คุณไม่มีสิทธิ์เพิ่มฝ่าย");
+      return;
+    }
+
     if (!form.code.trim() || !form.name.trim()) {
       swalError("กรุณากรอกรหัสฝ่ายและชื่อฝ่าย");
       return;
@@ -196,6 +241,11 @@ export default function DivisionsPage() {
   };
 
   const handleDelete = async (division) => {
+     if (!canDelete) {
+      swalError("คุณไม่มีสิทธิ์ลบฝ่าย");
+      return;
+    }
+
     const confirmed = await swalConfirm(
       `ต้องการลบฝ่าย "${division.name}" ใช่หรือไม่?`
     );
@@ -228,6 +278,10 @@ export default function DivisionsPage() {
     }
   };
 
+  if (loadingUser) return null;
+  if (!user) return null;
+  if (!canView) return null;
+
   return (
     <div className="space-y-6">
       <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -237,15 +291,22 @@ export default function DivisionsPage() {
             <p className="mt-1 text-sm text-slate-500">
               จัดการข้อมูลฝ่ายภายใต้แต่ละแผนก
             </p>
+            {!canCreate && !canEdit && !canDelete ? (
+              <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+                คุณมีสิทธิ์ดูข้อมูลได้อย่างเดียว ไม่สามารถเพิ่ม แก้ไข หรือลบฝ่ายได้
+              </div>
+            ) : null}
           </div>
 
-          <button
-            type="button"
-            onClick={handleOpenCreate}
-            className="rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
-          >
-            + เพิ่มฝ่าย
-          </button>
+          {canCreate && (
+            <button
+              type="button"
+              onClick={handleOpenCreate}
+              className="rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+            >
+              + เพิ่มฝ่าย
+            </button>
+          )}
         </div>
       </div>
 
@@ -325,34 +386,42 @@ export default function DivisionsPage() {
                     </td>
 
                     <td className="px-6 py-4">
-                      <div className="flex justify-end gap-2">
-                        <button
-                          type="button"
-                          onClick={() => handleOpenEdit(division)}
-                          className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100"
-                        >
-                          Edit
-                        </button>
+                      {(canEdit || canDelete) ? (
+                        <div className="flex justify-end gap-2">
+                          {canEdit && (
+                            <button
+                              type="button"
+                              onClick={() => handleOpenEdit(division)}
+                              className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100"
+                            >
+                              Edit
+                            </button>
+                          )}
 
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(division)}
-                          disabled={deletingId === division.id}
-                          className={`rounded-xl border px-3 py-2 text-xs font-medium ${
-                            deletingId === division.id
-                              ? "cursor-not-allowed border-slate-200 text-slate-400"
-                              : "border-red-200 text-red-600 hover:bg-red-50"
-                          }`}
-                        >
-                          {deletingId === division.id ? "Deleting..." : "Delete"}
-                        </button>
-                      </div>
+                          {canDelete && (
+                            <button
+                              type="button"
+                              onClick={() => handleDelete(division)}
+                              disabled={deletingId === division.id}
+                              className={`rounded-xl border px-3 py-2 text-xs font-medium ${
+                                deletingId === division.id
+                                  ? "cursor-not-allowed border-slate-200 text-slate-400"
+                                  : "border-red-200 text-red-600 hover:bg-red-50"
+                              }`}
+                            >
+                              {deletingId === division.id ? "Deleting..." : "Delete"}
+                            </button>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="text-right text-slate-400">-</div>
+                      )}
                     </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={5} className="px-6 py-10 text-center text-slate-400">
+                  <td colSpan={6} className="px-6 py-10 text-center text-slate-400">
                     ไม่พบข้อมูลฝ่าย
                   </td>
                 </tr>
@@ -452,18 +521,20 @@ export default function DivisionsPage() {
                 Cancel
               </button>
 
-              <button
-                type="button"
-                onClick={handleSave}
-                disabled={saving}
-                className={`rounded-2xl px-5 py-3 text-sm font-semibold text-white ${
-                  saving
-                    ? "cursor-not-allowed bg-slate-400"
-                    : "bg-slate-900 hover:bg-slate-800"
-                }`}
-              >
-                {saving ? "Saving..." : editingDivision ? "Update" : "Save"}
-              </button>
+              {((editingDivision && canEdit) || (!editingDivision && canCreate)) && (
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  disabled={saving}
+                  className={`rounded-2xl px-5 py-3 text-sm font-semibold text-white ${
+                    saving
+                      ? "cursor-not-allowed bg-slate-400"
+                      : "bg-slate-900 hover:bg-slate-800"
+                  }`}
+                >
+                  {saving ? "Saving..." : editingDivision ? "Update" : "Save"}
+                </button>
+              )}
             </div>
           </div>
         </div>

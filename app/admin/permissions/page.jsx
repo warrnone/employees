@@ -3,6 +3,9 @@
 import { useEffect, useState } from "react";
 import { swalConfirm, swalError, swalSuccess } from "../../components/Swal";
 import { Pagination } from "antd";
+import { useRouter } from "next/navigation";
+import useAuth from "@/hooks/useAuth";
+import { hasPermission } from "@/lib/permissions";
 
 const initialForm = {
   module_code: "",
@@ -26,6 +29,29 @@ export default function PermissionsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 7;
   const paginatedPermissions = permissions.slice((currentPage - 1) * pageSize,currentPage * pageSize);
+
+  // #region Permission
+  const router = useRouter();
+  const { user, loadingUser } = useAuth();
+  const canView = hasPermission(user, "permissions.view");
+  const canCreate = hasPermission(user, "permissions.create");
+  const canEdit = hasPermission(user, "permissions.edit");
+  const canDelete = hasPermission(user, "permissions.delete");
+
+  
+  useEffect(() => {
+    if (loadingUser) return;
+
+    if (!user) {
+      router.replace("/login");
+      return;
+    }
+
+    if (!canView) {
+      router.replace("/admin");
+    }
+  }, [user, canView, loadingUser, router]);
+  // #endregion
 
   const loadPermissions = async () => {
     try {
@@ -61,11 +87,22 @@ export default function PermissionsPage() {
   };
 
   const handleOpenCreate = () => {
+    if (!canCreate) {
+      swalError("คุณไม่มีสิทธิ์เพิ่ม Permission");
+      return;
+    }
+
     resetForm();
     setOpenModal(true);
   };
 
   const handleOpenEdit = (item) => {
+
+    if (!canEdit) {
+      swalError("คุณไม่มีสิทธิ์แก้ไข Permission");
+      return;
+    }
+
     if (item.is_system) {
       swalError("ไม่สามารถแก้ไข System Permission ได้");
       return;
@@ -89,6 +126,17 @@ export default function PermissionsPage() {
   };
 
   const handleSave = async () => {
+    const isEdit = !!editingPermission;
+    if (isEdit && !canEdit) {
+      swalError("คุณไม่มีสิทธิ์แก้ไข Permission");
+      return;
+    }
+
+    if (!isEdit && !canCreate) {
+      swalError("คุณไม่มีสิทธิ์เพิ่ม Permission");
+      return;
+    }
+
     if (!form.module_code.trim()) {
       swalError("กรุณากรอก Module");
       return;
@@ -156,6 +204,12 @@ export default function PermissionsPage() {
   };
 
   const handleDelete = async (item) => {
+
+    if (!canDelete) {
+      swalError("คุณไม่มีสิทธิ์ลบ Permission");
+      return;
+    }
+
     if (item.is_system) {
       swalError("ไม่สามารถลบ System Permission ได้");
       return;
@@ -190,6 +244,12 @@ export default function PermissionsPage() {
     }
   };
 
+  // #region Permission
+  if (loadingUser) return null;
+  if (!user) return null;
+  if (!canView) return null;
+  // #endregion
+
   return (
     <div className="space-y-6">
       <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm">
@@ -201,13 +261,15 @@ export default function PermissionsPage() {
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={handleOpenCreate}
-            className="rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white hover:bg-slate-800"
-          >
-            + เพิ่ม Permission
-          </button>
+          {canCreate && (
+            <button
+              type="button"
+              onClick={handleOpenCreate}
+              className="rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white hover:bg-slate-800"
+            >
+              + เพิ่ม Permission
+            </button>
+          )}
         </div>
       </div>
 
@@ -303,37 +365,45 @@ export default function PermissionsPage() {
                     </td>
 
                     <td className="px-6 py-4">
-                      <div className="flex justify-end gap-2">
-                        <button
-                          type="button"
-                          onClick={() => handleOpenEdit(item)}
-                          disabled={item.is_system}
-                          className={`rounded-xl border px-3 py-2 text-xs font-medium ${
-                            item.is_system
-                              ? "cursor-not-allowed border-slate-200 bg-slate-50 text-slate-400"
-                              : "border-slate-300 text-slate-600 hover:bg-slate-100"
-                          }`}
-                        >
-                          {item.is_system ? "Protected" : "Edit"}
-                        </button>
+                      {(canEdit || canDelete) ? (
+                        <div className="flex justify-end gap-2">
+                          {canEdit && (
+                            <button
+                              type="button"
+                              onClick={() => handleOpenEdit(item)}
+                              disabled={item.is_system}
+                              className={`rounded-xl border px-3 py-2 text-xs font-medium ${
+                                item.is_system
+                                  ? "cursor-not-allowed border-slate-200 bg-slate-50 text-slate-400"
+                                  : "border-slate-300 text-slate-600 hover:bg-slate-100"
+                              }`}
+                            >
+                              {item.is_system ? "Protected" : "Edit"}
+                            </button>
+                          )}
 
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(item)}
-                          disabled={deletingId === item.id || item.is_system}
-                          className={`rounded-xl border px-3 py-2 text-xs font-medium ${
-                            deletingId === item.id || item.is_system
-                              ? "cursor-not-allowed border-slate-200 bg-slate-50 text-slate-400"
-                              : "border-red-200 text-red-600 hover:bg-red-50"
-                          }`}
-                        >
-                          {item.is_system
-                            ? "Protected"
-                            : deletingId === item.id
-                              ? "Deleting..."
-                              : "Delete"}
-                        </button>
-                      </div>
+                          {canDelete && (
+                            <button
+                              type="button"
+                              onClick={() => handleDelete(item)}
+                              disabled={deletingId === item.id || item.is_system}
+                              className={`rounded-xl border px-3 py-2 text-xs font-medium ${
+                                deletingId === item.id || item.is_system
+                                  ? "cursor-not-allowed border-slate-200 bg-slate-50 text-slate-400"
+                                  : "border-red-200 text-red-600 hover:bg-red-50"
+                              }`}
+                            >
+                              {item.is_system
+                                ? "Protected"
+                                : deletingId === item.id
+                                  ? "Deleting..."
+                                  : "Delete"}
+                            </button>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="text-right text-slate-400">-</div>
+                      )}
                     </td>
                   </tr>
                 ))
@@ -497,18 +567,20 @@ export default function PermissionsPage() {
                 Cancel
               </button>
 
-              <button
-                type="button"
-                onClick={handleSave}
-                disabled={saving}
-                className={`rounded-2xl px-5 py-3 text-sm font-semibold text-white ${
-                  saving
-                    ? "cursor-not-allowed bg-slate-400"
-                    : "bg-slate-900 hover:bg-slate-800"
-                }`}
-              >
-                {saving ? "Saving..." : editingPermission ? "Update" : "Save"}
-              </button>
+              {((editingPermission && canEdit) || (!editingPermission && canCreate)) && (
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  disabled={saving}
+                  className={`rounded-2xl px-5 py-3 text-sm font-semibold text-white ${
+                    saving
+                      ? "cursor-not-allowed bg-slate-400"
+                      : "bg-slate-900 hover:bg-slate-800"
+                  }`}
+                >
+                  {saving ? "Saving..." : editingPermission ? "Update" : "Save"}
+                </button>
+              )}
             </div>
           </div>
         </div>

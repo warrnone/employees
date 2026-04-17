@@ -60,19 +60,25 @@ export default function EmployeesPage() {
 
   // #region Permission
   const router = useRouter();
-  const user = useAuth();
+  const { user, loadingUser } = useAuth();
   const canView = hasPermission(user, "employees.view");
   const canCreate = hasPermission(user, "employees.create");
   const canEdit = hasPermission(user, "employees.edit");
   const canDelete = hasPermission(user, "employees.delete");
-  console.log(user); 
+
   
   useEffect(() => {
-    if (!user) return;
+    if (loadingUser) return;
+
+    if (!user) {
+      router.replace("/login");
+      return;
+    }
+
     if (!canView) {
       router.replace("/admin");
     }
-  }, [user, canView, router]);
+  }, [user, canView, loadingUser, router]);
   // #endregion
 
   const loadEmploymentTypes = async () => {
@@ -215,11 +221,23 @@ export default function EmployeesPage() {
   };
 
   const handleOpenCreate = () => {
+
+    if (!canCreate) {
+      swalError("คุณไม่มีสิทธิ์เพิ่มข้อมูลพนักงาน");
+      return;
+    }
+
     resetForm();
     setOpenModal(true);
   };
 
   const handleOpenEdit = (employee) => {
+
+    if (!canEdit) {
+      swalError("คุณไม่มีสิทธิ์แก้ไขข้อมูลพนักงาน");
+      return;
+    }
+    
     setEditingEmployee(employee);
     setForm({
       first_name_th: employee.first_name_th || "",
@@ -267,6 +285,20 @@ export default function EmployeesPage() {
   }, [units, form.division_id]);
 
   const handleSave = async () => {
+    const isEdit = !!editingEmployee;
+    if (isEdit && !canEdit) {
+      swalError("คุณไม่มีสิทธิ์แก้ไขข้อมูลพนักงาน");
+      return;
+    }
+
+    if (!isEdit && !canCreate) {
+      swalError("คุณไม่มีสิทธิ์เพิ่มข้อมูลพนักงาน");
+      return;
+    }
+
+
+
+
     if (!form.first_name_th.trim() || !form.last_name_th.trim()) {
       swalError("กรุณากรอกชื่อและนามสกุล");
       return;
@@ -360,6 +392,11 @@ export default function EmployeesPage() {
   };
 
   const handleDelete = async (employee) => {
+    if (!canDelete) {
+      swalError("คุณไม่มีสิทธิ์ลบข้อมูลพนักงาน");
+      return;
+    }
+
     const confirmed = await swalConfirm(
       `ต้องการลบพนักงาน "${employee.full_name_th}" ใช่หรือไม่?`
     );
@@ -390,6 +427,7 @@ export default function EmployeesPage() {
   };
 
   // #region Permission
+  if (loadingUser) return null;
   if (!user) return null;
   if (!canView) return null;
   // #endregion
@@ -405,13 +443,15 @@ export default function EmployeesPage() {
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={handleOpenCreate}
-            className="rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white hover:bg-slate-800"
-          >
-            + เพิ่มพนักงาน
-          </button>
+          {canCreate && (
+            <button
+              type="button"
+              onClick={handleOpenCreate}
+              className="rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white hover:bg-slate-800"
+            >
+              + เพิ่มพนักงาน
+            </button>
+          )}
         </div>
       </div>
 
@@ -498,27 +538,41 @@ export default function EmployeesPage() {
                       </span>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="flex justify-end gap-2">
-                        <button
-                          type="button"
-                          onClick={() => handleOpenEdit(employee)}
-                          className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(employee)}
-                          disabled={deletingId === employee.id}
-                          className={`rounded-xl border px-3 py-2 text-xs font-medium ${
-                            deletingId === employee.id
-                              ? "cursor-not-allowed border-slate-200 text-slate-400"
-                              : "border-red-200 text-red-600 hover:bg-red-50"
-                          }`}
-                        >
-                          {deletingId === employee.id ? "Deleting..." : "Delete"}
-                        </button>
-                      </div>
+                      {(canEdit || canDelete) ? (
+                        <>
+                          <div className="flex justify-end gap-2">
+
+                            {canEdit && (
+                              <button
+                                type="button"
+                                onClick={() => handleOpenEdit(employee)}
+                                className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100"
+                              >
+                                Edit
+                              </button>
+                            )}
+
+                             {canDelete && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleDelete(employee)}
+                                  disabled={deletingId === employee.id}
+                                  className={`rounded-xl border px-3 py-2 text-xs font-medium ${
+                                    deletingId === employee.id
+                                      ? "cursor-not-allowed border-slate-200 text-slate-400"
+                                      : "border-red-200 text-red-600 hover:bg-red-50"
+                                  }`}
+                                >
+                                  {deletingId === employee.id ? "Deleting..." : "Delete"}
+                                </button>
+                              )}
+                          </div>
+                        </>
+                      ):(
+                        <>
+                          <div className="text-right text-slate-400">-</div>
+                        </>
+                      )}
                     </td>
                   </tr>
                 ))
@@ -889,18 +943,20 @@ export default function EmployeesPage() {
                 Cancel
               </button>
 
-              <button
-                type="button"
-                onClick={handleSave}
-                disabled={saving}
-                className={`rounded-2xl px-5 py-3 text-sm font-semibold text-white ${
-                  saving
-                    ? "cursor-not-allowed bg-slate-400"
-                    : "bg-slate-900 hover:bg-slate-800"
-                }`}
-              >
-                {saving ? "Saving..." : editingEmployee ? "Update" : "Save"}
-              </button>
+              {((editingEmployee && canEdit) || (!editingEmployee && canCreate)) && (
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  disabled={saving}
+                  className={`rounded-2xl px-5 py-3 text-sm font-semibold text-white ${
+                    saving
+                      ? "cursor-not-allowed bg-slate-400"
+                      : "bg-slate-900 hover:bg-slate-800"
+                  }`}
+                >
+                  {saving ? "Saving..." : editingEmployee ? "Update" : "Save"}
+                </button>
+              )}      
             </div>
           </div>
         </div>

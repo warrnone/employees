@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { swalSuccess, swalError, swalConfirm } from "../../components/Swal";
+import { useRouter } from "next/navigation";
+import useAuth from "@/hooks/useAuth";
+import { hasPermission } from "@/lib/permissions";
 
 const initialForm = {
   type_code: "",
@@ -21,6 +24,29 @@ export default function EmploymentTypesPage() {
   const [openModal, setOpenModal] = useState(false);
   const [editingEmploymentType, setEditingEmploymentType] = useState(null);
 
+  // #region Permission
+  const router = useRouter();
+  const { user, loadingUser } = useAuth();
+  const canView = hasPermission(user, "employment_types.view");
+  const canCreate = hasPermission(user, "employment_types.create");
+  const canEdit = hasPermission(user, "employment_types.edit");
+  const canDelete = hasPermission(user, "employment_types.delete");
+
+  
+  useEffect(() => {
+    if (loadingUser) return;
+
+    if (!user) {
+      router.replace("/login");
+      return;
+    }
+
+    if (!canView) {
+      router.replace("/admin");
+    }
+  }, [user, canView, loadingUser, router]);
+  // #endregion
+  
   const loadEmploymentTypes = async (keyword = "") => {
     try {
       setLoading(true);
@@ -75,11 +101,19 @@ export default function EmploymentTypesPage() {
   };
 
   const handleOpenCreate = () => {
+    if (!canCreate) {
+      swalError("คุณไม่มีสิทธิ์เพิ่มประเภทการจ้าง");
+      return;
+    }
     resetForm();
     setOpenModal(true);
   };
 
   const handleOpenEdit = (item) => {
+    if (!canEdit) {
+      swalError("คุณไม่มีสิทธิ์แก้ไขประเภทการจ้าง");
+      return;
+    }
     setEditingEmploymentType(item);
     setForm({
       type_code: item.type_code || "",
@@ -95,6 +129,17 @@ export default function EmploymentTypesPage() {
   };
 
   const handleSave = async () => {
+    const isEdit = !!editingEmploymentType;
+    if (isEdit && !canEdit) {
+      swalError("คุณไม่มีสิทธิ์แก้ไขประเภทการจ้าง");
+      return;
+    }
+
+    if (!isEdit && !canCreate) {
+      swalError("คุณไม่มีสิทธิ์เพิ่มประเภทการจ้าง");
+      return;
+    }
+    
     if (!form.type_code.trim() || !form.type_name.trim()) {
       swalError("กรุณากรอกรหัสประเภทการจ้างและชื่อประเภทการจ้าง");
       return;
@@ -154,6 +199,11 @@ export default function EmploymentTypesPage() {
   };
 
   const handleDelete = async (item) => {
+     if (!canDelete) {
+      swalError("คุณไม่มีสิทธิ์ลบประเภทการจ้าง");
+      return;
+    }
+
     const confirmed = await swalConfirm(
       `ต้องการลบประเภทการจ้าง "${item.type_name}" ใช่หรือไม่?`
     );
@@ -183,6 +233,10 @@ export default function EmploymentTypesPage() {
     }
   };
 
+  if (loadingUser) return null;
+  if (!user) return null;
+  if (!canView) return null;
+
   return (
     <div className="space-y-6">
       <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm">
@@ -194,15 +248,22 @@ export default function EmploymentTypesPage() {
             <p className="text-sm text-slate-500 mt-1">
               จัดการข้อมูลประเภทการจ้างของพนักงานในระบบ
             </p>
+            {!canCreate && !canEdit && !canDelete ? (
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+                คุณมีสิทธิ์ดูข้อมูลได้อย่างเดียว ไม่สามารถเพิ่ม แก้ไข หรือลบประเภทการจ้างได้
+              </div>
+            ) : null}
           </div>
 
-          <button
-            type="button"
-            onClick={handleOpenCreate}
-            className="rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white hover:bg-slate-800 transition"
-          >
-            + เพิ่มประเภทการจ้าง
-          </button>
+          {canCreate && (
+            <button
+              type="button"
+              onClick={handleOpenCreate}
+              className="rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white hover:bg-slate-800 transition"
+            >
+              + เพิ่มประเภทการจ้าง
+            </button>
+          )}
         </div>
       </div>
 
@@ -283,29 +344,37 @@ export default function EmploymentTypesPage() {
                     </td>
 
                     <td className="px-6 py-4">
-                      <div className="flex justify-end gap-2">
-                        <button
-                          type="button"
-                          onClick={() => handleOpenEdit(item)}
-                          className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100"
-                        >
-                          Edit
-                        </button>
+                      {(canEdit || canDelete) ? (
+                        <div className="flex justify-end gap-2">
+                          {canEdit && (
+                            <button
+                              type="button"
+                              onClick={() => handleOpenEdit(item)}
+                              className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100"
+                            >
+                              Edit
+                            </button>
+                          )}
 
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(item)}
-                          disabled={deletingId === item.id}
-                          className={`rounded-xl border px-3 py-2 text-xs font-medium ${
-                            deletingId === item.id
-                              ? "cursor-not-allowed border-slate-200 text-slate-400"
-                              : "border-red-200 text-red-600 hover:bg-red-50"
-                          }`}
-                        >
-                          {deletingId === item.id ? "Deleting..." : "Delete"}
-                        </button>
-                      </div>
-                    </td>
+                          {canDelete && (
+                            <button
+                              type="button"
+                              onClick={() => handleDelete(item)}
+                              disabled={deletingId === item.id}
+                              className={`rounded-xl border px-3 py-2 text-xs font-medium ${
+                                deletingId === item.id
+                                  ? "cursor-not-allowed border-slate-200 text-slate-400"
+                                  : "border-red-200 text-red-600 hover:bg-red-50"
+                              }`}
+                            >
+                              {deletingId === item.id ? "Deleting..." : "Delete"}
+                            </button>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="text-right text-slate-400">-</div>
+                      )}
+                    </td>    
                   </tr>
                 ))
               ) : (
@@ -405,18 +474,20 @@ export default function EmploymentTypesPage() {
                 Cancel
               </button>
 
-              <button
-                type="button"
-                onClick={handleSave}
-                disabled={saving}
-                className={`rounded-2xl px-5 py-3 text-sm font-semibold text-white ${
-                  saving
-                    ? "cursor-not-allowed bg-slate-400"
-                    : "bg-slate-900 hover:bg-slate-800"
-                }`}
-              >
-                {saving ? "Saving..." : editingEmploymentType ? "Update" : "Save"}
-              </button>
+              {((editingEmploymentType && canEdit) || (!editingEmploymentType && canCreate)) && (
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  disabled={saving}
+                  className={`rounded-2xl px-5 py-3 text-sm font-semibold text-white ${
+                    saving
+                      ? "cursor-not-allowed bg-slate-400"
+                      : "bg-slate-900 hover:bg-slate-800"
+                  }`}
+                >
+                  {saving ? "Saving..." : editingEmploymentType ? "Update" : "Save"}
+                </button>
+              )}
             </div>
           </div>
         </div>

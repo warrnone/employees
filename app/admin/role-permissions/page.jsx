@@ -3,6 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { Select } from "antd";
 import { swalError, swalSuccess } from "../../components/Swal";
+import { useRouter } from "next/navigation";
+import useAuth from "@/hooks/useAuth";
+import { hasPermission } from "@/lib/permissions";
 
 export default function RolePermissionsPage() {
   const [roles, setRoles] = useState([]);
@@ -15,6 +18,26 @@ export default function RolePermissionsPage() {
   const [loadingAssigned, setLoadingAssigned] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+
+   // #region Permission
+    const router = useRouter();
+    const { user, loadingUser } = useAuth();
+    const canView = hasPermission(user, "role_permissions.view");
+    const canEdit = hasPermission(user, "role_permissions.edit");
+
+    useEffect(() => {
+      if (loadingUser) return;
+  
+      if (!user) {
+        router.replace("/login");
+        return;
+      }
+  
+      if (!canView) {
+        router.replace("/admin");
+      }
+    }, [user, canView, loadingUser, router]);
+    // #endregion
 
   const loadRoles = async () => {
     try {
@@ -112,6 +135,12 @@ export default function RolePermissionsPage() {
   const selectedRole = roles.find((item) => item.id === selectedRoleId);
 
   const handleSave = async () => {
+
+    if (!canEdit) {
+      swalError("คุณไม่มีสิทธิ์แก้ไข Role Permissions");
+      return;
+    }
+
     if (!selectedRoleId) {
       swalError("กรุณาเลือก Role");
       return;
@@ -147,6 +176,11 @@ export default function RolePermissionsPage() {
   };
 
   const togglePermission = (permissionId) => {
+    if (!canEdit) {
+      swalError("คุณไม่มีสิทธิ์แก้ไข Role Permissions");
+      return;
+    }
+
     setSelectedPermissionIds((prev) =>
       prev.includes(permissionId)
         ? prev.filter((id) => id !== permissionId)
@@ -155,6 +189,11 @@ export default function RolePermissionsPage() {
   };
 
   const toggleModulePermissions = (moduleItems) => {
+    if (!canEdit) {
+      swalError("คุณไม่มีสิทธิ์แก้ไข Role Permissions");
+      return;
+    }
+
     const modulePermissionIds = moduleItems.map((item) => item.id);
     const allChecked = modulePermissionIds.every((id) =>
       selectedPermissionIds.includes(id)
@@ -171,6 +210,12 @@ export default function RolePermissionsPage() {
     }
   };
 
+  // #region Permission
+  if (loadingUser) return null;
+  if (!user) return null;
+  if (!canView) return null;
+  // #endregion
+
   return (
     <div className="space-y-6">
       <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm">
@@ -184,18 +229,20 @@ export default function RolePermissionsPage() {
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={saving || !selectedRoleId}
-            className={`rounded-2xl px-5 py-3 text-sm font-semibold text-white ${
-              saving || !selectedRoleId
-                ? "cursor-not-allowed bg-slate-400"
-                : "bg-slate-900 hover:bg-slate-800"
-            }`}
-          >
-            {saving ? "Saving..." : "บันทึกสิทธิ์"}
-          </button>
+          {canEdit && (
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={saving || !selectedRoleId}
+              className={`rounded-2xl px-5 py-3 text-sm font-semibold text-white ${
+                saving || !selectedRoleId
+                  ? "cursor-not-allowed bg-slate-400"
+                  : "bg-slate-900 hover:bg-slate-800"
+              }`}
+            >
+              {saving ? "Saving..." : "บันทึกสิทธิ์"}
+            </button>
+          )}
         </div>
       </div>
 
@@ -233,6 +280,12 @@ export default function RolePermissionsPage() {
             <p className="mt-1 text-sm text-slate-500">
               {selectedRole.description || "-"}
             </p>
+          </div>
+        ) : null}
+
+        {selectedRole && !canEdit ? (
+          <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+            คุณมีสิทธิ์ดูข้อมูลได้อย่างเดียว ไม่สามารถแก้ไขสิทธิ์ของ Role นี้ได้
           </div>
         ) : null}
       </div>
@@ -281,17 +334,19 @@ export default function RolePermissionsPage() {
                       </p>
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={() => toggleModulePermissions(items)}
-                      className={`rounded-2xl px-4 py-2 text-sm font-semibold ${
-                        allChecked
-                          ? "bg-red-100 text-red-700 hover:bg-red-200"
-                          : "bg-slate-900 text-white hover:bg-slate-800"
-                      }`}
-                    >
-                      {allChecked ? "ยกเลิกทั้งหมด" : "เลือกทั้งหมด"}
-                    </button>
+                    {canEdit && (
+                      <button
+                        type="button"
+                        onClick={() => toggleModulePermissions(items)}
+                        className={`rounded-2xl px-4 py-2 text-sm font-semibold ${
+                          allChecked
+                            ? "bg-red-100 text-red-700 hover:bg-red-200"
+                            : "bg-slate-900 text-white hover:bg-slate-800"
+                        }`}
+                      >
+                        {allChecked ? "ยกเลิกทั้งหมด" : "เลือกทั้งหมด"}
+                      </button>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -301,7 +356,9 @@ export default function RolePermissionsPage() {
                       return (
                         <label
                           key={item.id}
-                          className={`flex cursor-pointer items-start gap-3 rounded-2xl border p-4 transition ${
+                          className={`flex items-start gap-3 rounded-2xl border p-4 transition ${
+                            canEdit ? "cursor-pointer" : "cursor-not-allowed opacity-80"
+                          } ${
                             checked
                               ? "border-slate-900 bg-slate-50"
                               : "border-slate-200 bg-white hover:bg-slate-50"
@@ -310,6 +367,7 @@ export default function RolePermissionsPage() {
                           <input
                             type="checkbox"
                             checked={checked}
+                            disabled={!canEdit}
                             onChange={() => togglePermission(item.id)}
                             className="mt-1 h-4 w-4 rounded border-slate-300"
                           />

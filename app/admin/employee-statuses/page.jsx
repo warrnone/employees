@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { swalSuccess, swalError, swalConfirm } from "../../components/Swal";
+import { useRouter } from "next/navigation";
+import useAuth from "@/hooks/useAuth";
+import { hasPermission } from "@/lib/permissions";
 
 const initialForm = {
   status_code: "",
@@ -22,6 +25,29 @@ export default function EmployeeStatusesPage() {
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState("");
   const [error, setError] = useState("");
+
+  // #region Permission
+  const router = useRouter();
+  const { user, loadingUser } = useAuth();
+  const canView = hasPermission(user, "employee_statuses.view");
+  const canCreate = hasPermission(user, "employee_statuses.create");
+  const canEdit = hasPermission(user, "employee_statuses.edit");
+  const canDelete = hasPermission(user, "employee_statuses.delete");
+
+  
+  useEffect(() => {
+    if (loadingUser) return;
+
+    if (!user) {
+      router.replace("/login");
+      return;
+    }
+
+    if (!canView) {
+      router.replace("/admin");
+    }
+  }, [user, canView, loadingUser, router]);
+  // #endregion
 
   const loadEmployeeStatuses = async (keyword = "") => {
     try {
@@ -70,11 +96,19 @@ export default function EmployeeStatusesPage() {
   };
 
   const handleOpenCreate = () => {
+    if (!canCreate) {
+      swalError("คุณไม่มีสิทธิ์แก้ไขสถานะพนักงาน");
+      return;
+    }
     resetForm();
     setOpenModal(true);
   };
 
   const handleOpenEdit = (item) => {
+    if (!canEdit) {
+      swalError("คุณไม่มีสิทธิ์เพิ่มสถานะพนักงาน");
+      return;
+    }
     setEditingStatus(item);
     setForm({
       status_code: item.status_code || "",
@@ -91,6 +125,17 @@ export default function EmployeeStatusesPage() {
   };
 
   const handleSave = async () => {
+    const isEdit = !!editingStatus;
+    if (isEdit && !canEdit) {
+      swalError("คุณไม่มีสิทธิ์แก้ไขสถานะพนักงาน");
+      return;
+    }
+
+    if (!isEdit && !canCreate) {
+      swalError("คุณไม่มีสิทธิ์เพิ่มสถานะพนักงาน");
+      return;
+    }
+
     if (!form.status_code.trim() || !form.status_name.trim()) {
       swalError("กรุณากรอกรหัสสถานะและชื่อสถานะพนักงาน");
       return;
@@ -146,6 +191,12 @@ export default function EmployeeStatusesPage() {
   };
 
   const handleDelete = async (item) => {
+
+     if (!canDelete) {
+      swalError("คุณไม่มีสิทธิ์ลบสถานะพนักงาน");
+      return;
+    }
+
     const confirmed = await swalConfirm(
       `ต้องการลบสถานะพนักงาน "${item.status_name}" ใช่หรือไม่?`
     );
@@ -192,6 +243,10 @@ export default function EmployeeStatusesPage() {
     }
   };
 
+  if (loadingUser) return null;
+  if (!user) return null;
+  if (!canView) return null;
+
   return (
     <div className="space-y-6">
       <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm">
@@ -203,14 +258,23 @@ export default function EmployeeStatusesPage() {
             <p className="text-sm text-slate-500 mt-1">
               จัดการข้อมูลสถานะของพนักงานในระบบ
             </p>
+             {!canCreate && !canEdit && !canDelete ? (
+              <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+                คุณมีสิทธิ์ดูข้อมูลได้อย่างเดียว ไม่สามารถเพิ่ม แก้ไข หรือลบสถานะพนักงาน
+              </div>
+            ) : null}
           </div>
 
-          <button
-            onClick={handleOpenCreate}
-            className="rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white hover:bg-slate-800"
-          >
-            + เพิ่มสถานะพนักงาน
-          </button>
+            
+          {canCreate && (
+            <button
+              onClick={handleOpenCreate}
+              className="rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white hover:bg-slate-800"
+            >
+              + เพิ่มสถานะพนักงาน
+            </button>
+          )}
+
         </div>
       </div>
 
@@ -276,25 +340,33 @@ export default function EmployeeStatusesPage() {
                 </div>
 
                 <div className="flex flex-col gap-2">
-                  <button
-                    onClick={() => handleOpenEdit(item)}
-                    className="rounded-xl border border-white/60 bg-white/60 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-white"
-                  >
-                    Edit
-                  </button>
+                  {canEdit && (
+                    <button
+                      onClick={() => handleOpenEdit(item)}
+                      className="rounded-xl border border-white/60 bg-white/60 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-white"
+                    >
+                      Edit
+                    </button>
+                  )}
 
-                  <button
-                    onClick={() => handleDelete(item)}
-                    disabled={deletingId === item.id}
-                    className={`rounded-xl border px-3 py-2 text-xs font-medium ${
-                      deletingId === item.id
-                        ? "cursor-not-allowed border-slate-200 bg-white/60 text-slate-400"
-                        : "border-red-200 bg-white/60 text-red-600 hover:bg-red-50"
-                    }`}
-                  >
-                    {deletingId === item.id ? "Deleting..." : "Delete"}
-                  </button>
-                </div>
+                  {canDelete && (
+                    <button
+                      onClick={() => handleDelete(item)}
+                      disabled={deletingId === item.id}
+                      className={`rounded-xl border px-3 py-2 text-xs font-medium ${
+                        deletingId === item.id
+                          ? "cursor-not-allowed border-slate-200 bg-white/60 text-slate-400"
+                          : "border-red-200 bg-white/60 text-red-600 hover:bg-red-50"
+                      }`}
+                    >
+                      {deletingId === item.id ? "Deleting..." : "Delete"}
+                    </button>
+                  )}
+
+                  {!canEdit && !canDelete && (
+                    <div className="text-xs text-slate-500 text-right">-</div>
+                  )}
+                </div>      
               </div>
             </div>
           ))
@@ -407,17 +479,19 @@ export default function EmployeeStatusesPage() {
                 Cancel
               </button>
 
-              <button
-                onClick={handleSave}
-                disabled={saving}
-                className={`rounded-2xl px-5 py-3 text-sm font-semibold text-white ${
-                  saving
-                    ? "cursor-not-allowed bg-slate-400"
-                    : "bg-slate-900 hover:bg-slate-800"
-                }`}
-              >
-                {saving ? "Saving..." : editingStatus ? "Update" : "Save"}
-              </button>
+              {((editingStatus && canEdit) || (!editingStatus && canCreate)) && (
+                <button
+                  onClick={handleSave}
+                  disabled={saving}
+                  className={`rounded-2xl px-5 py-3 text-sm font-semibold text-white ${
+                    saving
+                      ? "cursor-not-allowed bg-slate-400"
+                      : "bg-slate-900 hover:bg-slate-800"
+                  }`}
+                >
+                  {saving ? "Saving..." : editingStatus ? "Update" : "Save"}
+                </button>
+              )}
             </div>
           </div>
         </div>

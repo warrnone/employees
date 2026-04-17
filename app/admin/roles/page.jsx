@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { swalConfirm, swalError, swalSuccess } from "../../components/Swal";
+import { useRouter } from "next/navigation";
+import useAuth from "@/hooks/useAuth";
+import { hasPermission } from "@/lib/permissions";
 
 const initialForm = {
   role_code: "",
@@ -20,6 +23,29 @@ export default function RolesPage() {
   const [openModal, setOpenModal] = useState(false);
   const [editingRole, setEditingRole] = useState(null);
   const [form, setForm] = useState(initialForm);
+
+  // #region Permission
+  const router = useRouter();
+  const { user, loadingUser } = useAuth();
+  const canView = hasPermission(user, "roles.view");
+  const canCreate = hasPermission(user, "roles.create");
+  const canEdit = hasPermission(user, "roles.edit");
+  const canDelete = hasPermission(user, "roles.delete");
+
+  
+  useEffect(() => {
+    if (loadingUser) return;
+
+    if (!user) {
+      router.replace("/login");
+      return;
+    }
+
+    if (!canView) {
+      router.replace("/admin");
+    }
+  }, [user, canView, loadingUser, router]);
+  // #endregion
 
   const loadRoles = async () => {
     try {
@@ -55,11 +81,21 @@ export default function RolesPage() {
   };
 
   const handleOpenCreate = () => {
+    if (!canCreate) {
+      swalError("คุณไม่มีสิทธิ์เพิ่ม Role");
+      return;
+    }
+
     resetForm();
     setOpenModal(true);
   };
 
   const handleOpenEdit = (item) => {
+    if (!canEdit) {
+      swalError("คุณไม่มีสิทธิ์แก้ไข Role");
+      return;
+    }
+
     if (item.is_system) {
       swalError("ไม่สามารถแก้ไข System Role ได้");
       return;
@@ -81,6 +117,17 @@ export default function RolesPage() {
   };
 
   const handleSave = async () => {
+    const isEdit = !!editingRole;
+    if (isEdit && !canEdit) {
+      swalError("คุณไม่มีสิทธิ์แก้ไข Role");
+      return;
+    }
+
+    if (!isEdit && !canCreate) {
+      swalError("คุณไม่มีสิทธิ์เพิ่ม Role");
+      return;
+    }
+
     if (!form.role_code.trim()) {
       swalError("กรุณากรอก Role Code");
       return;
@@ -131,6 +178,11 @@ export default function RolesPage() {
   };
 
   const handleDelete = async (item) => {
+    if (!canDelete) {
+      swalError("คุณไม่มีสิทธิ์ลบ Role");
+      return;
+    }
+
     if (item.is_system) {
       swalError("ไม่สามารถลบ System Role ได้");
       return;
@@ -165,6 +217,10 @@ export default function RolesPage() {
     }
   };
 
+  if (loadingUser) return null;
+  if (!user) return null;
+  if (!canView) return null;
+
   return (
     <div className="space-y-6">
       <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm">
@@ -174,15 +230,22 @@ export default function RolesPage() {
             <p className="text-sm text-slate-500 mt-1">
               จัดการบทบาทผู้ใช้งานในระบบ
             </p>
+            {!canCreate && !canEdit && !canDelete ? (
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+                คุณมีสิทธิ์ดูข้อมูลได้อย่างเดียว ไม่สามารถเพิ่ม แก้ไข หรือลบ Role ได้
+              </div>
+            ) : null}
           </div>
 
-          <button
-            type="button"
-            onClick={handleOpenCreate}
-            className="rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white hover:bg-slate-800"
-          >
-            + เพิ่ม บทบาทผู้ใช้งานในระบบ
-          </button>
+          {canCreate && (
+            <button
+              type="button"
+              onClick={handleOpenCreate}
+              className="rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white hover:bg-slate-800"
+            >
+              + เพิ่ม บทบาทผู้ใช้งานในระบบ
+            </button>
+          )}
         </div>
       </div>
 
@@ -208,7 +271,7 @@ export default function RolesPage() {
 
             <tbody>
               {loading ? (
-                [...Array(5)].map((_, index) => (
+                [...Array(roles.length)].map((_, index) => (
                   <tr key={index} className="border-t border-slate-200">
                     <td className="px-6 py-4">
                       <div className="h-4 w-24 animate-pulse rounded bg-slate-200" />
@@ -273,37 +336,45 @@ export default function RolesPage() {
                     </td>
 
                     <td className="px-6 py-4">
-                      <div className="flex justify-end gap-2">
-                        <button
-                          type="button"
-                          onClick={() => handleOpenEdit(item)}
-                          disabled={item.is_system}
-                          className={`rounded-xl border px-3 py-2 text-xs font-medium ${
-                            item.is_system
-                              ? "cursor-not-allowed border-slate-200 bg-slate-50 text-slate-400"
-                              : "border-slate-300 text-slate-600 hover:bg-slate-100"
-                          }`}
-                        >
-                          {item.is_system ? "Protected" : "Edit"}
-                        </button>
+                      {(canEdit || canDelete) ? (
+                        <div className="flex justify-end gap-2">
+                          {canEdit && (
+                            <button
+                              type="button"
+                              onClick={() => handleOpenEdit(item)}
+                              disabled={item.is_system}
+                              className={`rounded-xl border px-3 py-2 text-xs font-medium ${
+                                item.is_system
+                                  ? "cursor-not-allowed border-slate-200 bg-slate-50 text-slate-400"
+                                  : "border-slate-300 text-slate-600 hover:bg-slate-100"
+                              }`}
+                            >
+                              {item.is_system ? "Protected" : "Edit"}
+                            </button>
+                          )}
 
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(item)}
-                          disabled={deletingId === item.id || item.is_system}
-                          className={`rounded-xl border px-3 py-2 text-xs font-medium ${
-                            deletingId === item.id || item.is_system
-                              ? "cursor-not-allowed border-slate-200 bg-slate-50 text-slate-400"
-                              : "border-red-200 text-red-600 hover:bg-red-50"
-                          }`}
-                        >
-                          {item.is_system
-                            ? "Protected"
-                            : deletingId === item.id
-                              ? "Deleting..."
-                              : "Delete"}
-                        </button>
-                      </div>
+                          {canDelete && (
+                            <button
+                              type="button"
+                              onClick={() => handleDelete(item)}
+                              disabled={deletingId === item.id || item.is_system}
+                              className={`rounded-xl border px-3 py-2 text-xs font-medium ${
+                                deletingId === item.id || item.is_system
+                                  ? "cursor-not-allowed border-slate-200 bg-slate-50 text-slate-400"
+                                  : "border-red-200 text-red-600 hover:bg-red-50"
+                              }`}
+                            >
+                              {item.is_system
+                                ? "Protected"
+                                : deletingId === item.id
+                                  ? "Deleting..."
+                                  : "Delete"}
+                            </button>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="text-right text-slate-400">-</div>
+                      )}
                     </td>
                   </tr>
                 ))
@@ -416,18 +487,20 @@ export default function RolesPage() {
                 Cancel
               </button>
 
-              <button
-                type="button"
-                onClick={handleSave}
-                disabled={saving}
-                className={`rounded-2xl px-5 py-3 text-sm font-semibold text-white ${
-                  saving
-                    ? "cursor-not-allowed bg-slate-400"
-                    : "bg-slate-900 hover:bg-slate-800"
-                }`}
-              >
-                {saving ? "Saving..." : editingRole ? "Update" : "Save"}
-              </button>
+              {((editingRole && canEdit) || (!editingRole && canCreate)) && (
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  disabled={saving}
+                  className={`rounded-2xl px-5 py-3 text-sm font-semibold text-white ${
+                    saving
+                      ? "cursor-not-allowed bg-slate-400"
+                      : "bg-slate-900 hover:bg-slate-800"
+                  }`}
+                >
+                  {saving ? "Saving..." : editingRole ? "Update" : "Save"}
+                </button>
+              )}
             </div>
           </div>
         </div>

@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { swalSuccess, swalError, swalConfirm } from "../../components/Swal";
+import { useRouter } from "next/navigation";
+import useAuth from "@/hooks/useAuth";
+import { hasPermission } from "@/lib/permissions";
 
 const initialForm = {
   code: "",
@@ -37,6 +40,30 @@ export default function PositionsPage() {
   const [openModal, setOpenModal] = useState(false);
   const [editingPosition, setEditingPosition] = useState(null);
   const [form, setForm] = useState(initialForm);
+
+  // #region Permission
+  const router = useRouter();
+  const { user, loadingUser } = useAuth();
+  const canView = hasPermission(user, "positions.view");
+  const canCreate = hasPermission(user, "positions.create");
+  const canEdit = hasPermission(user, "positions.edit");
+  const canDelete = hasPermission(user, "positions.delete");
+
+  
+  useEffect(() => {
+    if (loadingUser) return;
+
+    if (!user) {
+      router.replace("/login");
+      return;
+    }
+
+    if (!canView) {
+      router.replace("/admin");
+    }
+  }, [user, canView, loadingUser, router]);
+  // #endregion
+
 
   const loadPositions = async (keyword = "") => {
     try {
@@ -94,11 +121,19 @@ export default function PositionsPage() {
   };
 
   const handleOpenCreate = () => {
+    if (!canCreate) {
+      swalError("คุณไม่มีสิทธิ์เพิ่มตำแหน่ง");
+      return;
+    }
     resetForm();
     setOpenModal(true);
   };
 
   const handleOpenEdit = (position) => {
+    if (!canEdit) {
+      swalError("คุณไม่มีสิทธิ์แก้ไขตำแหน่ง");
+      return;
+    }
     setEditingPosition(position);
 
     setForm({
@@ -118,6 +153,18 @@ export default function PositionsPage() {
   };
 
   const handleSave = async () => {
+    const isEdit = !!editingPosition;
+
+    if (isEdit && !canEdit) {
+      swalError("คุณไม่มีสิทธิ์แก้ไขตำแหน่ง");
+      return;
+    }
+
+    if (!isEdit && !canCreate) {
+      swalError("คุณไม่มีสิทธิ์เพิ่มตำแหน่ง");
+      return;
+    }
+    
     if (!form.code.trim() || !form.name.trim()) {
       swalError("กรุณากรอกรหัสตำแหน่งและชื่อตำแหน่ง");
       return;
@@ -189,6 +236,11 @@ export default function PositionsPage() {
   };
 
   const handleDelete = async (position) => {
+     if (!canDelete) {
+      swalError("คุณไม่มีสิทธิ์ลบตำแหน่ง");
+      return;
+    }
+
     const confirmed = await swalConfirm(
       `ต้องการลบตำแหน่ง "${position.name}" ใช่หรือไม่?`
     );
@@ -218,6 +270,10 @@ export default function PositionsPage() {
     }
   };
 
+  if (loadingUser) return null;
+  if (!user) return null;
+  if (!canView) return null;
+
   return (
     <div className="space-y-6">
       <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -227,15 +283,22 @@ export default function PositionsPage() {
             <p className="mt-1 text-sm text-slate-500">
               จัดการข้อมูลตำแหน่งงานกลางขององค์กร
             </p>
+            {!canCreate && !canEdit && !canDelete ? (
+              <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+                คุณมีสิทธิ์ดูข้อมูลได้อย่างเดียว ไม่สามารถเพิ่ม แก้ไข หรือลบตำแหน่งได้
+              </div>
+            ) : null}
           </div>
 
-          <button
-            type="button"
-            onClick={handleOpenCreate}
-            className="rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
-          >
-            + เพิ่มตำแหน่ง
-          </button>
+          {canCreate && (
+            <button
+              type="button"
+              onClick={handleOpenCreate}
+              className="rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+            >
+              + เพิ่มตำแหน่ง
+            </button>
+          )}
         </div>
       </div>
 
@@ -329,29 +392,37 @@ export default function PositionsPage() {
                       </span>
                     </td>
 
-                    <td className="px-6 py-4">
-                      <div className="flex justify-end gap-2">
-                        <button
-                          type="button"
-                          onClick={() => handleOpenEdit(position)}
-                          className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100"
-                        >
-                          Edit
-                        </button>
+                   <td className="px-6 py-4">
+                      {(canEdit || canDelete) ? (
+                        <div className="flex justify-end gap-2">
+                          {canEdit && (
+                            <button
+                              type="button"
+                              onClick={() => handleOpenEdit(position)}
+                              className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100"
+                            >
+                              Edit
+                            </button>
+                          )}
 
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(position)}
-                          disabled={deletingId === position.id}
-                          className={`rounded-xl border px-3 py-2 text-xs font-medium ${
-                            deletingId === position.id
-                              ? "cursor-not-allowed border-slate-200 text-slate-400"
-                              : "border-red-200 text-red-600 hover:bg-red-50"
-                          }`}
-                        >
-                          {deletingId === position.id ? "Deleting..." : "Delete"}
-                        </button>
-                      </div>
+                          {canDelete && (
+                            <button
+                              type="button"
+                              onClick={() => handleDelete(position)}
+                              disabled={deletingId === position.id}
+                              className={`rounded-xl border px-3 py-2 text-xs font-medium ${
+                                deletingId === position.id
+                                  ? "cursor-not-allowed border-slate-200 text-slate-400"
+                                  : "border-red-200 text-red-600 hover:bg-red-50"
+                              }`}
+                            >
+                              {deletingId === position.id ? "Deleting..." : "Delete"}
+                            </button>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="text-right text-slate-400">-</div>
+                      )}
                     </td>
                   </tr>
                 ))
@@ -491,18 +562,20 @@ export default function PositionsPage() {
                 Cancel
               </button>
 
-              <button
-                type="button"
-                onClick={handleSave}
-                disabled={saving}
-                className={`rounded-2xl px-5 py-3 text-sm font-semibold text-white ${
-                  saving
-                    ? "cursor-not-allowed bg-slate-400"
-                    : "bg-slate-900 hover:bg-slate-800"
-                }`}
-              >
-                {saving ? "Saving..." : editingPosition ? "Update" : "Save"}
-              </button>
+              {((editingPosition && canEdit) || (!editingPosition && canCreate)) && (
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  disabled={saving}
+                  className={`rounded-2xl px-5 py-3 text-sm font-semibold text-white ${
+                    saving
+                      ? "cursor-not-allowed bg-slate-400"
+                      : "bg-slate-900 hover:bg-slate-800"
+                  }`}
+                >
+                  {saving ? "Saving..." : editingPosition ? "Update" : "Save"}
+                </button>
+              )}
             </div>
           </div>
         </div>

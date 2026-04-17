@@ -3,6 +3,9 @@
 import { useEffect, useState } from "react";
 import { swalSuccess, swalError, swalConfirm } from "../../components/Swal";
 import { Select } from "antd";
+import { useRouter } from "next/navigation";
+import useAuth from "@/hooks/useAuth";
+import { hasPermission } from "@/lib/permissions";
 
 const initialForm = {
   code: "",
@@ -24,6 +27,29 @@ export default function UnitsPage() {
   const [openModal, setOpenModal] = useState(false);
   const [editingUnit, setEditingUnit] = useState(null);
   const [form, setForm] = useState(initialForm);
+
+  // #region Permission
+  const router = useRouter();
+  const { user, loadingUser } = useAuth();
+  const canView = hasPermission(user, "units.view");
+  const canCreate = hasPermission(user, "units.create");
+  const canEdit = hasPermission(user, "units.edit");
+  const canDelete = hasPermission(user, "units.delete");
+
+  
+  useEffect(() => {
+    if (loadingUser) return;
+
+    if (!user) {
+      router.replace("/login");
+      return;
+    }
+
+    if (!canView) {
+      router.replace("/admin");
+    }
+  }, [user, canView, loadingUser, router]);
+  // #endregion
 
   const loadDivisions = async () => {
     try {
@@ -103,11 +129,21 @@ export default function UnitsPage() {
   };
 
   const handleOpenCreate = () => {
+    if (!canCreate) {
+      swalError("คุณไม่มีสิทธิ์เพิ่มหน่วย");
+      return;
+    }
+
     resetForm();
     setOpenModal(true);
   };
 
   const handleOpenEdit = (unit) => {
+    if (!canEdit) {
+      swalError("คุณไม่มีสิทธิ์แก้ไขหน่วย");
+      return;
+    }
+
     setEditingUnit(unit);
 
     setForm({
@@ -126,6 +162,18 @@ export default function UnitsPage() {
   };
 
   const handleSave = async () => {
+    const isEdit = !!editingUnit;
+
+    if (isEdit && !canEdit) {
+      swalError("คุณไม่มีสิทธิ์แก้ไขหน่วย");
+      return;
+    }
+
+    if (!isEdit && !canCreate) {
+      swalError("คุณไม่มีสิทธิ์เพิ่มหน่วย");
+      return;
+    }
+
     if (!form.code.trim() || !form.name.trim()) {
       swalError("กรุณากรอกรหัสหน่วยและชื่อหน่วย");
       return;
@@ -196,6 +244,12 @@ export default function UnitsPage() {
   };
 
   const handleDelete = async (unit) => {
+
+    if (!canDelete) {
+      swalError("คุณไม่มีสิทธิ์ลบหน่วย");
+      return;
+    }
+
     const confirmed = await swalConfirm(
       `ต้องการลบหน่วย "${unit.name}" ใช่หรือไม่?`
     );
@@ -244,6 +298,10 @@ export default function UnitsPage() {
     }, {})
   ).sort((a, b) => a.label.localeCompare(b.label, "th"));
 
+  if (loadingUser) return null;
+  if (!user) return null;
+  if (!canView) return null;
+
   return (
     <div className="space-y-6">
       <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -253,15 +311,22 @@ export default function UnitsPage() {
             <p className="mt-1 text-sm text-slate-500">
               จัดการข้อมูลหน่วยภายใต้แต่ละฝ่าย จุดปฏิบัติงานจริง
             </p>
+            {!canCreate && !canEdit && !canDelete ? (
+              <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+                คุณมีสิทธิ์ดูข้อมูลได้อย่างเดียว ไม่สามารถเพิ่ม แก้ไข หรือลบหน่วยได้
+              </div>
+            ) : null}
           </div>
 
-          <button
-            type="button"
-            onClick={handleOpenCreate}
-            className="rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
-          >
-            + เพิ่มหน่วย
-          </button>
+          {canCreate && (
+            <button
+              type="button"
+              onClick={handleOpenCreate}
+              className="rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+            >
+              + เพิ่มหน่วย
+            </button>
+          )}
         </div>
       </div>
 
@@ -298,7 +363,7 @@ export default function UnitsPage() {
 
             <tbody>
               {loading ? (
-                [...Array(units.length)].map((_, i) => (
+                [...Array(5)].map((_, i) => (
                   <tr key={i} className="border-t border-slate-200">
                     <td className="px-6 py-4">
                       <div className="h-3.5 w-20 animate-pulse rounded-md bg-slate-200" />
@@ -359,29 +424,37 @@ export default function UnitsPage() {
                     </td>
 
                     <td className="px-6 py-4">
-                      <div className="flex justify-end gap-2">
-                        <button
-                          type="button"
-                          onClick={() => handleOpenEdit(unit)}
-                          className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100"
-                        >
-                          Edit
-                        </button>
+                      {(canEdit || canDelete) ? (
+                        <div className="flex justify-end gap-2">
+                          {canEdit && (
+                            <button
+                              type="button"
+                              onClick={() => handleOpenEdit(unit)}
+                              className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100"
+                            >
+                              Edit
+                            </button>
+                          )}
 
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(unit)}
-                          disabled={deletingId === unit.id}
-                          className={`rounded-xl border px-3 py-2 text-xs font-medium ${
-                            deletingId === unit.id
-                              ? "cursor-not-allowed border-slate-200 text-slate-400"
-                              : "border-red-200 text-red-600 hover:bg-red-50"
-                          }`}
-                        >
-                          {deletingId === unit.id ? "Deleting..." : "Delete"}
-                        </button>
-                      </div>
-                    </td>
+                          {canDelete && (
+                            <button
+                              type="button"
+                              onClick={() => handleDelete(unit)}
+                              disabled={deletingId === unit.id}
+                              className={`rounded-xl border px-3 py-2 text-xs font-medium ${
+                                deletingId === unit.id
+                                  ? "cursor-not-allowed border-slate-200 text-slate-400"
+                                  : "border-red-200 text-red-600 hover:bg-red-50"
+                              }`}
+                            >
+                              {deletingId === unit.id ? "Deleting..." : "Delete"}
+                            </button>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="text-right text-slate-400">-</div>
+                      )}
+                    </td>    
                   </tr>
                 ))
               ) : (
@@ -488,18 +561,20 @@ export default function UnitsPage() {
                 Cancel
               </button>
 
-              <button
-                type="button"
-                onClick={handleSave}
-                disabled={saving}
-                className={`rounded-2xl px-5 py-3 text-sm font-semibold text-white ${
-                  saving
-                    ? "cursor-not-allowed bg-slate-400"
-                    : "bg-slate-900 hover:bg-slate-800"
-                }`}
-              >
-                {saving ? "Saving..." : editingUnit ? "Update" : "Save"}
-              </button>
+              {((editingUnit && canEdit) || (!editingUnit && canCreate)) && (
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  disabled={saving}
+                  className={`rounded-2xl px-5 py-3 text-sm font-semibold text-white ${
+                    saving
+                      ? "cursor-not-allowed bg-slate-400"
+                      : "bg-slate-900 hover:bg-slate-800"
+                  }`}
+                >
+                  {saving ? "Saving..." : editingUnit ? "Update" : "Save"}
+                </button>
+              )}
             </div>
           </div>
         </div>

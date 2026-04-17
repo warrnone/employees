@@ -6,6 +6,9 @@ import PhoneInput from "react-phone-number-input";
 import "react-phone-number-input/style.css";
 import { isValidPhoneNumber } from "libphonenumber-js";
 import { PhoneOutlined, InfoCircleOutlined } from "@ant-design/icons";
+import { useRouter } from "next/navigation";
+import useAuth from "@/hooks/useAuth";
+import { hasPermission } from "@/lib/permissions";
 
 const initialForm = {
   code: "",
@@ -28,6 +31,29 @@ export default function BranchesPage() {
   const [editingBranch, setEditingBranch] = useState(null);
   const [phoneError, setPhoneError] = useState("");
   const [companies, setCompanies] = useState([]);
+
+  // #region Permission
+  const router = useRouter();
+  const { user, loadingUser } = useAuth();
+  const canView = hasPermission(user, "branches.view");
+  const canCreate = hasPermission(user, "branches.create");
+  const canEdit = hasPermission(user, "branches.edit");
+  const canDelete = hasPermission(user, "branches.delete");
+
+  
+  useEffect(() => {
+    if (loadingUser) return;
+
+    if (!user) {
+      router.replace("/login");
+      return;
+    }
+
+    if (!canView) {
+      router.replace("/admin");
+    }
+  }, [user, canView, loadingUser, router]);
+  // #endregion
 
   const loadCompanies = async () => {
     try {
@@ -98,14 +124,23 @@ export default function BranchesPage() {
   const resetForm = () => {
     setForm(initialForm);
     setEditingBranch(null);
+    setPhoneError("");
   };
 
   const handleOpenCreate = () => {
+    if (!canCreate) {
+      swalError("คุณไม่มีสิทธิ์เพิ่มสาขา");
+      return;
+    }
     resetForm();
     setOpenModal(true);
   };
 
   const handleOpenEdit = (branch) => {
+    if (!canEdit) {
+      swalError("คุณไม่มีสิทธิ์แก้ไขสาขา");
+      return;
+    }
     setEditingBranch(branch);
     setForm({
       code: branch.code || "",
@@ -123,6 +158,17 @@ export default function BranchesPage() {
   };
 
   const handleSave = async () => {
+    const isEdit = !!editingBranch;
+    if (isEdit && !canEdit) {
+      swalError("คุณไม่มีสิทธิ์แก้ไขสาขา");
+      return;
+    }
+
+    if (!isEdit && !canCreate) {
+      swalError("คุณไม่มีสิทธิ์เพิ่มสาขา");
+      return;
+    }
+    
     if (!form.code.trim() || !form.name.trim()) {
       swalError("กรุณากรอกรหัสสังกัดและชื่อสังกัด");
       return;
@@ -195,6 +241,11 @@ export default function BranchesPage() {
   };
 
   const handleDelete = async (branch) => {
+    if (!canDelete) {
+      swalError("คุณไม่มีสิทธิ์ลบสาขา");
+      return;
+    }
+
     const confirmed = await swalConfirm(
       `ต้องการลบสังกัด "${branch.name}" ใช่หรือไม่?`
     );
@@ -224,6 +275,10 @@ export default function BranchesPage() {
     }
   };
 
+  if (loadingUser) return null;
+  if (!user) return null;
+  if (!canView) return null;
+
   return (
     <div className="space-y-6">
       <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm">
@@ -233,15 +288,22 @@ export default function BranchesPage() {
             <p className="text-sm text-slate-500 mt-1">
               จัดการข้อมูลสังกัดของพนักงานในระบบ Employee Master
             </p>
+            {!canCreate && !canEdit && !canDelete ? (
+              <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+                คุณมีสิทธิ์ดูข้อมูลได้อย่างเดียว ไม่สามารถเพิ่ม แก้ไข หรือลบสาขาได้
+              </div>
+            ) : null}
           </div>
 
-          <button
-            type="button"
-            onClick={handleOpenCreate}
-            className="rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white hover:bg-slate-800 transition"
-          >
-            + เพิ่มสาขา
-          </button>
+          {canCreate && (
+            <button
+              type="button"
+              onClick={handleOpenCreate}
+              className="rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white hover:bg-slate-800 transition"
+            >
+              + เพิ่มสาขา
+            </button>
+          )}
         </div>
       </div>
 
@@ -344,28 +406,36 @@ export default function BranchesPage() {
                     </td>
 
                     <td className="px-6 py-4">
-                      <div className="flex justify-end gap-2">
-                        <button
-                          type="button"
-                          onClick={() => handleOpenEdit(branch)}
-                          className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100"
-                        >
-                          Edit
-                        </button>
+                      {(canEdit || canDelete) ? (
+                        <div className="flex justify-end gap-2">
+                          {canEdit && (
+                            <button
+                              type="button"
+                              onClick={() => handleOpenEdit(branch)}
+                              className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100"
+                            >
+                              Edit
+                            </button>
+                          )}
 
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(branch)}
-                          disabled={deletingId === branch.id}
-                          className={`rounded-xl border px-3 py-2 text-xs font-medium ${
-                            deletingId === branch.id
-                              ? "border-slate-200 text-slate-400 cursor-not-allowed"
-                              : "border-red-200 text-red-600 hover:bg-red-50"
-                          }`}
-                        >
-                          {deletingId === branch.id ? "Deleting..." : "Delete"}
-                        </button>
-                      </div>
+                          {canDelete && (
+                            <button
+                              type="button"
+                              onClick={() => handleDelete(branch)}
+                              disabled={deletingId === branch.id}
+                              className={`rounded-xl border px-3 py-2 text-xs font-medium ${
+                                deletingId === branch.id
+                                  ? "border-slate-200 text-slate-400 cursor-not-allowed"
+                                  : "border-red-200 text-red-600 hover:bg-red-50"
+                              }`}
+                            >
+                              {deletingId === branch.id ? "Deleting..." : "Delete"}
+                            </button>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="text-right text-slate-400">-</div>
+                      )}
                     </td>
                   </tr>
                 ))
@@ -559,18 +629,20 @@ export default function BranchesPage() {
                 Cancel
               </button>
 
-              <button
-                type="button"
-                onClick={handleSave}
-                disabled={saving}
-                className={`rounded-2xl px-5 py-3 text-sm font-semibold text-white ${
-                  saving
-                    ? "bg-slate-400 cursor-not-allowed"
-                    : "bg-slate-900 hover:bg-slate-800"
-                }`}
-              >
-                {saving ? "Saving..." : editingBranch ? "Update" : "Save"}
-              </button>
+              {((editingBranch && canEdit) || (!editingBranch && canCreate)) && (
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  disabled={saving}
+                  className={`rounded-2xl px-5 py-3 text-sm font-semibold text-white ${
+                    saving
+                      ? "bg-slate-400 cursor-not-allowed"
+                      : "bg-slate-900 hover:bg-slate-800"
+                  }`}
+                >
+                  {saving ? "Saving..." : editingBranch ? "Update" : "Save"}
+                </button>
+              )}
             </div>
           </div>
         </div>
