@@ -296,7 +296,7 @@ export default function EmployeeStatusesPage() {
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
         {loading ? (
-          [...Array(employeeStatuses.length)].map((_, i) => (
+          [...Array(5)].map((_, i) => (
             <div
               key={i}
               className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm"

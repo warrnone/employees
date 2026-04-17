@@ -489,7 +489,7 @@ export default function EmployeesPage() {
 
             <tbody>
               {loading ? (
-                [...Array(employees.length)].map((_, i) => (
+                [...Array(5)].map((_, i) => (
                   <tr key={i} className="border-t border-slate-200">
                     <td className="px-6 py-4"><div className="h-4 w-24 animate-pulse rounded bg-slate-200" /></td>
                     <td className="px-6 py-4"><div className="h-4 w-36 animate-pulse rounded bg-slate-200" /></td>
