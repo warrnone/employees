@@ -29,6 +29,10 @@ export default function UnitPositionsPage() {
   const [editingRow, setEditingRow] = useState(null);
   const [form, setForm] = useState(initialForm);
 
+  // Partition
+  const [page, setPage] = useState(1);
+  const [pageSize] = useState(20);
+
   // #region Permission
   const router = useRouter();
   const { user, loadingUser } = useAuth();
@@ -86,6 +90,7 @@ export default function UnitPositionsPage() {
       }
 
       setPositions(data.data || []);
+      setPage(1);
     } catch (err) {
       console.error(err);
       swalError(err.message || "ไม่สามารถโหลดข้อมูลตำแหน่งได้");
@@ -275,6 +280,13 @@ export default function UnitPositionsPage() {
       }
 
       setRows((prev) => prev.filter((item) => item.id !== row.id));
+      const nextRows = rows.filter((item) => item.id !== row.id);
+      setRows(nextRows);
+
+      const nextTotalPages = Math.max(1, Math.ceil(nextRows.length / pageSize));
+      if (page > nextTotalPages) {
+        setPage(nextTotalPages);
+      }
       swalSuccess("ลบข้อมูลเรียบร้อยแล้ว");
     } catch (err) {
       console.error(err);
@@ -312,6 +324,13 @@ export default function UnitPositionsPage() {
       label: position.position_name + (position.position_level ? ` (${position.position_level})` : ""),
     }));
   }, [positions]);
+
+  const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
+  const paginatedRows = useMemo(() => {
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize;
+    return rows.slice(from, to);
+  }, [rows, page, pageSize]);
 
   if (loadingUser) return null;
   if (!user) return null;
@@ -395,11 +414,11 @@ export default function UnitPositionsPage() {
                     <td className="px-6 py-4"><div className="ml-auto h-8 w-24 animate-pulse rounded bg-slate-200" /></td>
                   </tr>
                 ))
-              ) : rows.length > 0 ? (
-                rows.map((row, index) => (
+              ) : paginatedRows.length > 0 ? (
+                paginatedRows.map((row, index) => (
                   <tr key={row.id} className="border-t border-slate-200 hover:bg-slate-50">
                     <td className="px-6 py-4 font-medium text-slate-700">
-                      {index + 1}
+                      {(page - 1) * pageSize + index + 1}
                     </td>
 
                     <td className="px-6 py-4 text-slate-700">
@@ -481,6 +500,37 @@ export default function UnitPositionsPage() {
               )}
             </tbody>
           </table>
+          
+          {/* Partition */}
+          <div className="flex items-center justify-between border-t border-slate-200 px-6 py-4">
+            <p className="text-sm text-slate-500">
+              ทั้งหมด {rows.length} รายการ
+            </p>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                disabled={page <= 1 || loading}
+                onClick={() => setPage((prev) => prev - 1)}
+                className="rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-600 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                ก่อนหน้า
+              </button>
+
+              <span className="text-sm text-slate-600">
+                หน้า {page} / {totalPages}
+              </span>
+
+              <button
+                type="button"
+                disabled={page >= totalPages || loading}
+                onClick={() => setPage((prev) => prev + 1)}
+                className="rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-600 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                ถัดไป
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -602,4 +652,3 @@ export default function UnitPositionsPage() {
     </div>
   );
 }
-                                                                                                                                                                                                                                                                                                                                                 

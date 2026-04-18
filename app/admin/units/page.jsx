@@ -28,6 +28,9 @@ export default function UnitsPage() {
   const [editingUnit, setEditingUnit] = useState(null);
   const [form, setForm] = useState(initialForm);
 
+  const [page, setPage] = useState(1);
+  const [pageSize] = useState(20);
+
   // #region Permission
   const router = useRouter();
   const { user, loadingUser } = useAuth();
@@ -102,6 +105,7 @@ export default function UnitsPage() {
       }));
 
       setUnits(mapped);
+      setPage(1);
     } catch (err) {
       console.error(err);
       setError(err.message || "เกิดข้อผิดพลาดในการโหลดข้อมูล");
@@ -231,6 +235,7 @@ export default function UnitsPage() {
         swalSuccess("อัพเดทข้อมูลหน่วยเรียบร้อยแล้ว");
       } else {
         setUnits((prev) => [savedUnit, ...prev]);
+        setPage(1);
         swalSuccess("บันทึกข้อมูลหน่วยเรียบร้อยแล้ว");
       }
 
@@ -269,7 +274,13 @@ export default function UnitsPage() {
         throw new Error(data?.error || "Delete failed");
       }
 
-      setUnits((prev) => prev.filter((item) => item.id !== unit.id));
+      const nextUnits = units.filter((item) => item.id !== unit.id);
+      setUnits(nextUnits);
+
+      const nextTotalPages = Math.max(1, Math.ceil(nextUnits.length / pageSize));
+      if (page > nextTotalPages) {
+        setPage(nextTotalPages);
+      }
       swalSuccess("ลบข้อมูลหน่วยเรียบร้อยแล้ว");
     } catch (err) {
       console.error(err);
@@ -297,6 +308,12 @@ export default function UnitsPage() {
       return acc;
     }, {})
   ).sort((a, b) => a.label.localeCompare(b.label, "th"));
+
+  const totalPages = Math.max(1, Math.ceil(units.length / pageSize));
+  const paginatedUnits = units.slice(
+    (page - 1) * pageSize,
+    page * pageSize
+  );
 
   if (loadingUser) return null;
   if (!user) return null;
@@ -385,14 +402,14 @@ export default function UnitsPage() {
                     </td>
                   </tr>
                 ))
-              ) : units.length > 0 ? (
-                units.map((unit , index) => (
+              ) : paginatedUnits.length > 0 ? (
+                paginatedUnits.map((unit , index) => (
                   <tr
                     key={unit.id}
                     className="border-t border-slate-200 hover:bg-slate-50"
                   >
                     <td className="px-6 py-4 font-medium text-slate-700">
-                      {index + 1}
+                      {(page - 1) * pageSize + index + 1}
                     </td>
 
                     <td className="px-6 py-4 font-medium text-slate-700">
@@ -460,7 +477,7 @@ export default function UnitsPage() {
               ) : (
                 <tr>
                   <td
-                    colSpan={6}
+                    colSpan={7}
                     className="px-6 py-10 text-center text-slate-400"
                   >
                     ไม่พบข้อมูลหน่วย
@@ -469,6 +486,36 @@ export default function UnitsPage() {
               )}
             </tbody>
           </table>
+
+          <div className="flex items-center justify-between border-t border-slate-200 px-6 py-4">
+            <p className="text-sm text-slate-500">
+              ทั้งหมด {units.length} รายการ
+            </p>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                disabled={page <= 1 || loading}
+                onClick={() => setPage((prev) => prev - 1)}
+                className="rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-600 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                ก่อนหน้า
+              </button>
+
+              <span className="text-sm text-slate-600">
+                หน้า {page} / {totalPages}
+              </span>
+
+              <button
+                type="button"
+                disabled={page >= totalPages || loading}
+                onClick={() => setPage((prev) => prev + 1)}
+                className="rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-600 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                ถัดไป
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 

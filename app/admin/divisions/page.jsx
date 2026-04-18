@@ -27,6 +27,9 @@ export default function DivisionsPage() {
   const [editingDivision, setEditingDivision] = useState(null);
   const [form, setForm] = useState(initialForm);
 
+  const [page, setPage] = useState(1);
+  const [pageSize] = useState(20);
+
   // #region Permission
   const router = useRouter();
   const { user, loadingUser } = useAuth();
@@ -100,6 +103,7 @@ export default function DivisionsPage() {
       }));
 
       setDivisions(mapped);
+      setPage(1);
     } catch (err) {
       console.error(err);
       setError(err.message || "เกิดข้อผิดพลาดในการโหลดข้อมูล");
@@ -228,6 +232,7 @@ export default function DivisionsPage() {
         swalSuccess("อัพเดทข้อมูลฝ่ายเรียบร้อยแล้ว");
       } else {
         setDivisions((prev) => [savedDivision, ...prev]);
+        setPage(1);
         swalSuccess("บันทึกข้อมูลฝ่ายเรียบร้อยแล้ว");
       }
 
@@ -265,9 +270,13 @@ export default function DivisionsPage() {
         throw new Error(data?.error || "Delete failed");
       }
 
-      setDivisions((prev) =>
-        prev.filter((item) => item.id !== division.id)
-      );
+      const nextDivisions = divisions.filter((item) => item.id !== division.id);
+      setDivisions(nextDivisions);
+
+      const nextTotalPages = Math.max(1, Math.ceil(nextDivisions.length / pageSize));
+      if (page > nextTotalPages) {
+        setPage(nextTotalPages);
+      }
 
       swalSuccess("ลบข้อมูลฝ่ายเรียบร้อยแล้ว");
     } catch (err) {
@@ -277,6 +286,12 @@ export default function DivisionsPage() {
       setDeletingId("");
     }
   };
+
+  const totalPages = Math.max(1, Math.ceil(divisions.length / pageSize));
+  const paginatedDivisions = divisions.slice(
+    (page - 1) * pageSize,
+    page * pageSize
+  );
 
   if (loadingUser) return null;
   if (!user) return null;
@@ -351,14 +366,14 @@ export default function DivisionsPage() {
                     <td className="px-6 py-4"><div className="ml-auto h-8 w-24 animate-pulse rounded-xl bg-slate-200" /></td>
                   </tr>
                 ))
-              ) : divisions.length > 0 ? (
-                divisions.map((division , index) => (
+              ) : paginatedDivisions.length > 0 ? (
+                paginatedDivisions.map((division , index) => (
                   <tr
                     key={division.id}
                     className="border-t border-slate-200 hover:bg-slate-50"
                   >
                     <td className="px-6 py-4 font-medium text-slate-700">
-                      {index + 1}
+                      {(page - 1) * pageSize + index + 1}
                     </td>
 
                     <td className="px-6 py-4 font-medium text-slate-700">
@@ -428,6 +443,36 @@ export default function DivisionsPage() {
               )}
             </tbody>
           </table>
+
+          <div className="flex items-center justify-between border-t border-slate-200 px-6 py-4">
+            <p className="text-sm text-slate-500">
+              ทั้งหมด {divisions.length} รายการ
+            </p>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                disabled={page <= 1 || loading}
+                onClick={() => setPage((prev) => prev - 1)}
+                className="rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-600 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                ก่อนหน้า
+              </button>
+
+              <span className="text-sm text-slate-600">
+                หน้า {page} / {totalPages}
+              </span>
+
+              <button
+                type="button"
+                disabled={page >= totalPages || loading}
+                onClick={() => setPage((prev) => prev + 1)}
+                className="rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-600 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                ถัดไป
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 

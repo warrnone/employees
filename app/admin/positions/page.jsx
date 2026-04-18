@@ -41,6 +41,10 @@ export default function PositionsPage() {
   const [editingPosition, setEditingPosition] = useState(null);
   const [form, setForm] = useState(initialForm);
 
+  // Partition
+  const [page, setPage] = useState(1);
+  const [pageSize] = useState(20);
+
   // #region Permission
   const router = useRouter();
   const { user, loadingUser } = useAuth();
@@ -63,7 +67,6 @@ export default function PositionsPage() {
     }
   }, [user, canView, loadingUser, router]);
   // #endregion
-
 
   const loadPositions = async (keyword = "") => {
     try {
@@ -95,6 +98,7 @@ export default function PositionsPage() {
       }));
 
       setPositions(mapped);
+      setPage(1);
     } catch (err) {
       console.error(err);
       setError(err.message || "เกิดข้อผิดพลาดในการโหลดข้อมูล");
@@ -223,6 +227,7 @@ export default function PositionsPage() {
         swalSuccess("อัพเดทข้อมูลตำแหน่งเรียบร้อยแล้ว");
       } else {
         setPositions((prev) => [savedPosition, ...prev]);
+        setPage(1);
         swalSuccess("บันทึกข้อมูลตำแหน่งเรียบร้อยแล้ว");
       }
 
@@ -260,7 +265,17 @@ export default function PositionsPage() {
         throw new Error(data?.error || "Delete failed");
       }
 
-      setPositions((prev) => prev.filter((item) => item.id !== position.id));
+      const nextPositions = positions.filter((item) => item.id !== position.id);
+      setPositions(nextPositions);
+
+      const nextTotalPages = Math.max(
+        1,
+        Math.ceil(nextPositions.length / pageSize)
+      );
+
+      if (page > nextTotalPages) {
+        setPage(nextTotalPages);
+      }
       swalSuccess("ลบข้อมูลตำแหน่งเรียบร้อยแล้ว");
     } catch (err) {
       console.error(err);
@@ -269,6 +284,12 @@ export default function PositionsPage() {
       setDeletingId("");
     }
   };
+
+  const totalPages = Math.max(1, Math.ceil(positions.length / pageSize));
+  const paginatedPositions = positions.slice(
+    (page - 1) * pageSize,
+    page * pageSize
+  );
 
   if (loadingUser) return null;
   if (!user) return null;
@@ -354,14 +375,14 @@ export default function PositionsPage() {
                     </td>
                   </tr>
                 ))
-              ) : positions.length > 0 ? (
-                positions.map((position,index) => (
+              ) : paginatedPositions.length > 0 ? (
+                paginatedPositions.map((position,index) => (
                   <tr
                     key={position.id}
                     className="border-t border-slate-200 hover:bg-slate-50"
                   >
                     <td className="px-6 py-4 font-medium text-slate-700">
-                      {index + 1}
+                      {(page - 1) * pageSize + index + 1}
                     </td>
 
                     <td className="px-6 py-4 font-medium text-slate-700">
@@ -438,6 +459,37 @@ export default function PositionsPage() {
               )}
             </tbody>
           </table>
+
+          {/* Partition */}
+          <div className="flex items-center justify-between border-t border-slate-200 px-6 py-4">
+            <p className="text-sm text-slate-500">
+              ทั้งหมด {positions.length} รายการ
+            </p>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                disabled={page <= 1 || loading}
+                onClick={() => setPage((prev) => prev - 1)}
+                className="rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-600 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                ก่อนหน้า
+              </button>
+
+              <span className="text-sm text-slate-600">
+                หน้า {page} / {totalPages}
+              </span>
+
+              <button
+                type="button"
+                disabled={page >= totalPages || loading}
+                onClick={() => setPage((prev) => prev + 1)}
+                className="rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-600 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                ถัดไป
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
