@@ -37,6 +37,120 @@ function padRunning(no) {
 }
 
 /* =========================
+   helper: escape ilike keyword
+========================= */
+function escapeLike(value = "") {
+  return value.replace(/[%_,]/g, "\\$&");
+}
+
+/* =========================
+   helper: map employee row
+========================= */
+function mapEmployee(item) {
+  return {
+    id: item.id,
+    employee_code: item.employee_code,
+    first_name_th: item.first_name_th,
+    last_name_th: item.last_name_th,
+    first_name_en: item.first_name_en || "",
+    last_name_en: item.last_name_en || "",
+    full_name_th: `${item.first_name_th || ""} ${item.last_name_th || ""}`.trim(),
+    full_name_en: `${item.first_name_en || ""} ${item.last_name_en || ""}`.trim(),
+    nick_name: item.nick_name || "",
+    gender: item.gender || "",
+    phone: item.phone || "",
+    email: item.email || "",
+    nationality: item.nationality || "",
+    hire_date: item.hire_date || "",
+    employment_type: item.employment_type || "",
+    status: item.status,
+    employee_status_id: item.employee_status_id || "",
+    employee_status_name: item.employee_statuses?.status_name || "-",
+    employee_status_color: item.employee_statuses?.color || "slate",
+    branch_id: item.branch_id || "",
+    department_id: item.department_id || "",
+    division_id: item.division_id || "",
+    unit_id: item.unit_id || "",
+    position_id: item.position_id || "",
+    branch_name: item.branches?.branch_name || "-",
+    department_name: item.departments?.department_name || "-",
+    division_name: item.divisions?.division_name || "-",
+    unit_name: item.units?.unit_name || "-",
+    position_name: item.positions?.position_name || "-",
+    position_level: item.positions?.position_level || "",
+    created_at: item.created_at,
+  };
+}
+
+/* =========================
+   helper: search in joined master tables
+========================= */
+async function searchRelatedIds(search) {
+  const keyword = `%${escapeLike(search)}%`;
+
+  const [
+    branchesRes,
+    departmentsRes,
+    divisionsRes,
+    unitsRes,
+    positionsRes,
+    employeeStatusesRes,
+  ] = await Promise.all([
+    supabaseAdmin
+      .from("branches")
+      .select("id")
+      .ilike("branch_name", keyword),
+
+    supabaseAdmin
+      .from("departments")
+      .select("id")
+      .ilike("department_name", keyword),
+
+    supabaseAdmin
+      .from("divisions")
+      .select("id")
+      .ilike("division_name", keyword),
+
+    supabaseAdmin
+      .from("units")
+      .select("id")
+      .ilike("unit_name", keyword),
+
+    supabaseAdmin
+      .from("positions")
+      .select("id")
+      .ilike("position_name", keyword),
+
+    supabaseAdmin
+      .from("employee_statuses")
+      .select("id")
+      .ilike("status_name", keyword),
+  ]);
+
+  const responses = [
+    branchesRes,
+    departmentsRes,
+    divisionsRes,
+    unitsRes,
+    positionsRes,
+    employeeStatusesRes,
+  ];
+
+  for (const res of responses) {
+    if (res.error) throw res.error;
+  }
+
+  return {
+    branchIds: (branchesRes.data || []).map((item) => item.id),
+    departmentIds: (departmentsRes.data || []).map((item) => item.id),
+    divisionIds: (divisionsRes.data || []).map((item) => item.id),
+    unitIds: (unitsRes.data || []).map((item) => item.id),
+    positionIds: (positionsRes.data || []).map((item) => item.id),
+    employeeStatusIds: (employeeStatusesRes.data || []).map((item) => item.id),
+  };
+}
+
+/* =========================
    GET: list employees
 ========================= */
 export async function GET(req) {
@@ -99,57 +213,73 @@ export async function GET(req) {
       .order("created_at", { ascending: false });
 
     if (search) {
-      query = query.or(
-        [
-          `employee_code.ilike.%${search}%`,
-          `first_name_th.ilike.%${search}%`,
-          `last_name_th.ilike.%${search}%`,
-          `first_name_en.ilike.%${search}%`,
-          `last_name_en.ilike.%${search}%`,
-          `nick_name.ilike.%${search}%`,
-          `phone.ilike.%${search}%`,
-          `email.ilike.%${search}%`,
-        ].join(",")
-      );
+      const safeSearch = escapeLike(search);
+      const searchParts = search.split(/\s+/).filter(Boolean);
+
+      const orConditions = [
+        `employee_code.ilike.%${safeSearch}%`,
+        `first_name_th.ilike.%${safeSearch}%`,
+        `last_name_th.ilike.%${safeSearch}%`,
+        `first_name_en.ilike.%${safeSearch}%`,
+        `last_name_en.ilike.%${safeSearch}%`,
+        `nick_name.ilike.%${safeSearch}%`,
+        `phone.ilike.%${safeSearch}%`,
+        `email.ilike.%${safeSearch}%`,
+      ];
+
+      if (searchParts.length >= 2) {
+        const firstPart = escapeLike(searchParts[0]);
+        const lastPart = escapeLike(searchParts.slice(1).join(" "));
+
+        orConditions.push(
+          `and(first_name_th.ilike.%${firstPart}%,last_name_th.ilike.%${lastPart}%)`,
+          `and(first_name_en.ilike.%${firstPart}%,last_name_en.ilike.%${lastPart}%)`,
+          `and(first_name_th.ilike.%${lastPart}%,last_name_th.ilike.%${firstPart}%)`,
+          `and(first_name_en.ilike.%${lastPart}%,last_name_en.ilike.%${firstPart}%)`
+        );
+      }
+
+      const {
+        branchIds,
+        departmentIds,
+        divisionIds,
+        unitIds,
+        positionIds,
+        employeeStatusIds,
+      } = await searchRelatedIds(search);
+
+      if (branchIds.length > 0) {
+        orConditions.push(`branch_id.in.(${branchIds.join(",")})`);
+      }
+
+      if (departmentIds.length > 0) {
+        orConditions.push(`department_id.in.(${departmentIds.join(",")})`);
+      }
+
+      if (divisionIds.length > 0) {
+        orConditions.push(`division_id.in.(${divisionIds.join(",")})`);
+      }
+
+      if (unitIds.length > 0) {
+        orConditions.push(`unit_id.in.(${unitIds.join(",")})`);
+      }
+
+      if (positionIds.length > 0) {
+        orConditions.push(`position_id.in.(${positionIds.join(",")})`);
+      }
+
+      if (employeeStatusIds.length > 0) {
+        orConditions.push(`employee_status_id.in.(${employeeStatusIds.join(",")})`);
+      }
+
+      query = query.or(orConditions.join(","));
     }
 
     const { data, error, count } = await query.range(from, to);
 
     if (error) throw error;
 
-    const mappedData = (data || []).map((item) => ({
-      id: item.id,
-      employee_code: item.employee_code,
-      first_name_th: item.first_name_th,
-      last_name_th: item.last_name_th,
-      first_name_en: item.first_name_en || "",
-      last_name_en: item.last_name_en || "",
-      full_name_th: `${item.first_name_th || ""} ${item.last_name_th || ""}`.trim(),
-      full_name_en: `${item.first_name_en || ""} ${item.last_name_en || ""}`.trim(),
-      nick_name: item.nick_name || "",
-      gender: item.gender || "",
-      phone: item.phone || "",
-      email: item.email || "",
-      nationality: item.nationality || "",
-      hire_date: item.hire_date || "",
-      employment_type: item.employment_type || "",
-      status: item.status,
-      employee_status_id: item.employee_status_id || "",
-      employee_status_name: item.employee_statuses?.status_name || "-",
-      employee_status_color: item.employee_statuses?.color || "slate",
-      branch_id: item.branch_id || "",
-      department_id: item.department_id || "",
-      division_id: item.division_id || "",
-      unit_id: item.unit_id || "",
-      position_id: item.position_id || "",
-      branch_name: item.branches?.branch_name || "-",
-      department_name: item.departments?.department_name || "-",
-      division_name: item.divisions?.division_name || "-",
-      unit_name: item.units?.unit_name || "-",
-      position_name: item.positions?.position_name || "-",
-      position_level: item.positions?.position_level || "",
-      created_at: item.created_at,
-    }));
+    const mappedData = (data || []).map(mapEmployee);
 
     return NextResponse.json({
       success: true,
