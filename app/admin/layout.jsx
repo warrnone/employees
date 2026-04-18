@@ -80,45 +80,31 @@ export default function AdminLayout({ children }) {
 
   if (loadingUser) {
     return (
-      <div className="min-h-screen bg-slate-100 flex">
-        <aside className="hidden lg:flex fixed top-0 left-0 h-screen w-64 bg-[#0a1628] text-white flex-col">
-          <div className="px-5 py-5 border-b border-white/10">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-[#0f6e56] flex items-center justify-center text-white text-xs font-bold">
-                HW
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-white leading-tight">
-                  Employee Master
-                </p>
-                <p className="text-[10px] text-slate-400 mt-0.5">
-                  Hanuman World · Admin
-                </p>
-              </div>
-            </div>
+      <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-50/80 backdrop-blur-md">
+        <div className="relative flex flex-col items-center">
+          {/* Outer Glow Ring */}
+          <div className="absolute h-24 w-24 animate-ping rounded-full bg-[#0f6e56]/10" />
+          
+          {/* Main Logo Container */}
+          <div className="relative flex h-20 w-20 items-center justify-center overflow-hidden rounded-[2rem] bg-white shadow-2xl shadow-[#0f6e56]/20">
+            <div className="absolute inset-0 bg-gradient-to-tr from-[#0f6e56] to-[#1eb68d] opacity-90" />
+            <span className="relative text-2xl font-black tracking-tighter text-white">HW</span>
+            
+            {/* Shine Effect Animation */}
+            <div className="absolute inset-0 animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full" />
           </div>
-        </aside>
 
-        <div className="flex-1 flex flex-col min-w-0 lg:ml-64">
-          <header className="h-14 bg-white border-b border-slate-200 flex items-center justify-between px-4 lg:px-6">
-            <div>
-              <h2 className="text-sm font-semibold text-slate-800">
-                Admin Panel
-              </h2>
-              <p className="text-xs text-slate-400">
-                Manage employee master data
-              </p>
+          {/* Status Text */}
+          <div className="mt-8 flex flex-col items-center gap-2">
+            <div className="flex items-center gap-2">
+              <div className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#0f6e56] [animation-delay:-0.3s]" />
+              <div className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#0f6e56] [animation-delay:-0.15s]" />
+              <div className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#0f6e56]" />
             </div>
-          </header>
-
-          <main className="flex-1 p-6">
-            <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-              <div className="flex items-center gap-3 text-slate-500">
-                <LoadingOutlined spin />
-                <span>กำลังโหลดข้อมูลผู้ใช้งาน...</span>
-              </div>
-            </div>
-          </main>
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-500">
+              Initializing System
+            </p>
+          </div>
         </div>
       </div>
     );

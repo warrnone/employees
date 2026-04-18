@@ -22,6 +22,7 @@ export const sidebarMenus = [
         label: "Dashboard",
         href: "/admin",
         icon: <DashboardOutlined />,
+        permission: "dashboard.view",
       },
     ],
   },

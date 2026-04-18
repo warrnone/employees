@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Card,
@@ -11,8 +11,9 @@ import {
   Tag,
   Button,
   Avatar,
-  List,
   Typography,
+  Skeleton,
+  Pagination,
 } from "antd";
 import {
   TeamOutlined,
@@ -22,20 +23,64 @@ import {
   ArrowUpOutlined,
   ClockCircleOutlined,
   CheckCircleOutlined,
-  SolutionOutlined,
-  BankOutlined,
-  DeploymentUnitOutlined,
 } from "@ant-design/icons";
 import useAuth from "@/hooks/useAuth";
 import { hasPermission } from "@/lib/permissions";
+import { sidebarMenus } from "./components/sidebarMenus";
 
 const { Title, Text } = Typography;
+
+function formatThaiDateTime(dateString) {
+  if (!dateString) return "-";
+
+  try {
+    return new Date(dateString).toLocaleString("th-TH", {
+      dateStyle: "short",
+      timeStyle: "short",
+    });
+  } catch {
+    return dateString;
+  }
+}
+
+function getActivityColor(action) {
+  if (action === "created") {
+    return "bg-emerald-100 text-emerald-700";
+  }
+
+  if (action === "updated") {
+    return "bg-blue-100 text-blue-700";
+  }
+
+  return "bg-slate-100 text-slate-600";
+}
 
 export default function AdminPage() {
   const router = useRouter();
   const { user, loadingUser } = useAuth();
 
-  const canView = hasPermission(user, "dashboard.view");
+  const canViewDashboard = hasPermission(user, "dashboard.view");
+
+  const [dashboard, setDashboard] = useState({
+    employees: 0,
+    user_accounts: 0,
+    roles: 0,
+    permissions: 0,
+    companies: 0,
+    branches: 0,
+    departments: 0,
+    divisions: 0,
+    units: 0,
+    positions: 0,
+    recent_activities: [],
+    recent_activities_total: 0,
+    recent_activities_page: 1,
+    recent_activities_page_size: 10,
+  });
+
+  const [loadingDashboard, setLoadingDashboard] = useState(true);
+  const [activityPage, setActivityPage] = useState(1);
+  const activityPageSize = 10;
 
   useEffect(() => {
     if (loadingUser) return;
@@ -45,153 +90,148 @@ export default function AdminPage() {
       return;
     }
 
-    if (!canView) {
-      router.replace("/admin");
+    if (!canViewDashboard) {
+      router.replace("/admin/employees");
     }
-  }, [user, canView, loadingUser, router]);
+  }, [user, loadingUser, canViewDashboard, router]);
+
+  const loadDashboard = async (page = 1) => {
+    try {
+      setLoadingDashboard(true);
+
+      const res = await fetch(
+        `/api/admin/dashboard?page=${page}&pageSize=${activityPageSize}`,
+        {
+          method: "GET",
+          cache: "no-store",
+        }
+      );
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data?.error || "Load dashboard failed");
+      }
+
+      setDashboard(
+        data.data || {
+          employees: 0,
+          user_accounts: 0,
+          roles: 0,
+          permissions: 0,
+          companies: 0,
+          branches: 0,
+          departments: 0,
+          divisions: 0,
+          units: 0,
+          positions: 0,
+          recent_activities: [],
+          recent_activities_total: 0,
+          recent_activities_page: 1,
+          recent_activities_page_size: 10,
+        }
+      );
+    } catch (error) {
+      console.error("LOAD_DASHBOARD_ERROR:", error);
+    } finally {
+      setLoadingDashboard(false);
+    }
+  };
+
+  useEffect(() => {
+    if (loadingUser) return;
+    if (!user) return;
+    if (!canViewDashboard) return;
+
+    loadDashboard(activityPage);
+  }, [loadingUser, user, canViewDashboard, activityPage]);
 
   const summaryCards = useMemo(
     () => [
       {
         title: "พนักงานทั้งหมด",
-        value: 248,
+        value: dashboard.employees || 0,
         suffix: "คน",
         icon: <TeamOutlined />,
-        growth: "+12%",
-        note: "อัปเดตจากเดือนที่ผ่านมา",
+        growth: "LIVE",
+        note: "จำนวนข้อมูลพนักงานในระบบ",
       },
       {
         title: "บัญชีผู้ใช้งาน",
-        value: 86,
+        value: dashboard.user_accounts || 0,
         suffix: "บัญชี",
         icon: <UserOutlined />,
-        growth: "+5%",
-        note: "พร้อมเข้าใช้งานระบบ",
+        growth: "LIVE",
+        note: "บัญชีที่ใช้เข้าสู่ระบบ",
       },
       {
         title: "Roles & Permissions",
-        value: 24,
+        value: (dashboard.roles || 0) + (dashboard.permissions || 0),
         suffix: "รายการ",
         icon: <SafetyCertificateOutlined />,
-        growth: "+3%",
-        note: "โครงสร้างสิทธิ์ปัจจุบัน",
+        growth: "LIVE",
+        note: "รวม role และ permission",
       },
       {
         title: "หน่วยงาน / ฝ่าย",
-        value: 37,
+        value:
+          (dashboard.departments || 0) +
+          (dashboard.divisions || 0) +
+          (dashboard.units || 0),
         suffix: "หน่วย",
         icon: <ApartmentOutlined />,
-        growth: "+8%",
-        note: "โครงสร้างองค์กรล่าสุด",
+        growth: "LIVE",
+        note: "รวมแผนก ฝ่าย และหน่วย",
       },
     ],
-    []
+    [dashboard]
   );
 
-  const quickMenus = useMemo(
-    () => [
-      {
-        title: "พนักงาน",
-        desc: "จัดการข้อมูลพนักงานหลักในระบบ",
-        icon: <TeamOutlined />,
-        href: "/admin/employees",
-      },
-      {
-        title: "ผู้ใช้งานระบบ",
-        desc: "จัดการบัญชีสำหรับเข้าใช้งาน",
-        icon: <UserOutlined />,
-        href: "/admin/user-accounts",
-      },
-      {
-        title: "Roles",
-        desc: "กำหนดบทบาทการใช้งาน",
-        icon: <SafetyCertificateOutlined />,
-        href: "/admin/roles",
-      },
-      {
-        title: "Permissions",
-        desc: "จัดการสิทธิ์แยกตาม module",
-        icon: <SolutionOutlined />,
-        href: "/admin/permissions",
-      },
-      {
-        title: "บริษัท / สาขา",
-        desc: "โครงสร้างระดับบริษัทและสังกัด",
-        icon: <BankOutlined />,
-        href: "/admin/companies",
-      },
-      {
-        title: "แผนก / ฝ่าย / หน่วย",
-        desc: "จัดการโครงสร้างองค์กรภายใน",
-        icon: <DeploymentUnitOutlined />,
-        href: "/admin/departments",
-      },
-    ],
-    []
-  );
-
-  const activities = useMemo(
-    () => [
-      {
-        title: "อัปเดตสิทธิ์ผู้ใช้งาน HR Manager",
-        time: "10 นาทีที่แล้ว",
-        status: "success",
-      },
-      {
-        title: "เพิ่มประเภทการจ้างใหม่",
-        time: "35 นาทีที่แล้ว",
-        status: "processing",
-      },
-      {
-        title: "แก้ไขข้อมูลโครงสร้างหน่วยงาน",
-        time: "1 ชั่วโมงที่แล้ว",
-        status: "default",
-      },
-      {
-        title: "สร้างบัญชีผู้ใช้งานใหม่",
-        time: "วันนี้ 08:45",
-        status: "success",
-      },
-    ],
-    []
-  );
+  const quickMenus = useMemo(() => {
+    return sidebarMenus
+      .flatMap((group) => group.items || [])
+      .filter((item) => item.href !== "/admin")
+      .filter((item) => {
+        if (!item.permission) return true;
+        return hasPermission(user, item.permission);
+      });
+  }, [user]);
 
   if (loadingUser) return null;
   if (!user) return null;
-  if (!canView) return null;
+  if (!canViewDashboard) return null;
 
   return (
     <div className="min-h-screen bg-slate-100">
       <div className="space-y-6 p-4 lg:p-6">
-        {/* Hero */}
+        {/* HERO */}
         <Card
-          bordered={false}
+          variant="borderless"
           className="overflow-hidden rounded-[28px] shadow-sm"
-          bodyStyle={{ padding: 0 }}
+          styles={{ body: { padding: 0 } }}
         >
-          <div className="relative bg-gradient-to-r from-slate-900 via-slate-800 to-emerald-900 px-6 py-8 text-white lg:px-8 lg:py-10">
-            <div className="absolute right-0 top-0 h-full w-1/3 opacity-10">
-              <div className="h-full w-full bg-[radial-gradient(circle_at_top_right,white,transparent_55%)]" />
-            </div>
+          <div className="relative overflow-hidden rounded-[28px] bg-gradient-to-r from-slate-950 via-slate-900 to-emerald-900 px-6 py-8 text-white lg:px-8 lg:py-10">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.18),transparent_35%)]" />
 
             <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
               <div className="max-w-3xl">
-                <div className="mb-3 flex items-center gap-2">
-                  <Tag className="m-0 rounded-full border-0 bg-white/15 px-3 py-1 text-white">
+                <div className="mb-3 flex flex-wrap items-center gap-2">
+                  <Tag className="m-0 rounded-full border-0 bg-white px-3 py-1 text-slate-900">
                     Employee Master
                   </Tag>
-                  <Tag className="m-0 rounded-full border-0 bg-emerald-500/20 px-3 py-1 text-emerald-200">
+
+                  <Tag className="m-0 rounded-full border-0 bg-white/15 px-3 py-1 text-white">
                     Dashboard
                   </Tag>
                 </div>
 
                 <Title level={2} className="!mb-2 !text-white">
-                  ยินดีต้อนรับ{user?.full_name ? `, ${user.full_name}` : ""}
+                  ยินดีต้อนรับ, {user?.full_name || user?.username || "ผู้ใช้งาน"}
                 </Title>
 
-                <Text className="text-white/80 text-base">
-                  ภาพรวมการจัดการข้อมูลพนักงาน โครงสร้างองค์กร และสิทธิ์ผู้ใช้งาน
-                  ในระบบ Employee Master
+                <Text className="text-base !text-slate-200">
+                  ภาพรวมการจัดการข้อมูลพนักงาน โครงสร้างองค์กร
+                  และสิทธิ์ผู้ใช้งานในระบบ Employee Master
                 </Text>
 
                 <div className="mt-5 flex flex-wrap items-center gap-3">
@@ -214,21 +254,24 @@ export default function AdminPage() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-4 self-start rounded-[24px] border border-white/10 bg-white/10 p-4 backdrop-blur">
+              <div className="flex items-center gap-4 rounded-[24px] border border-white/10 bg-white/10 p-5 backdrop-blur">
                 <Avatar
                   size={64}
                   icon={<UserOutlined />}
                   className="!bg-emerald-500"
                 />
+
                 <div>
-                  <div className="text-lg font-semibold">
-                    {user?.full_name || user?.username || "-"}
+                  <div className="text-2xl font-bold text-white">
+                    {user?.username || "-"}
                   </div>
-                  <div className="text-sm text-white/70">
+
+                  <div className="text-sm text-slate-200">
                     {user?.role_name || user?.role_code || "User"}
                   </div>
-                  <div className="mt-2">
-                    <Tag className="m-0 rounded-full border-0 bg-emerald-400/20 px-3 py-1 text-emerald-200">
+
+                  <div className="mt-3">
+                    <Tag className="m-0 rounded-full border-0 bg-white px-3 py-1 text-slate-900">
                       Active Session
                     </Tag>
                   </div>
@@ -238,14 +281,14 @@ export default function AdminPage() {
           </div>
         </Card>
 
-        {/* Summary */}
+        {/* SUMMARY */}
         <Row gutter={[16, 16]}>
           {summaryCards.map((item) => (
             <Col xs={24} sm={12} xl={6} key={item.title}>
               <Card
-                bordered={false}
+                variant="borderless"
                 className="rounded-[24px] shadow-sm"
-                bodyStyle={{ padding: 20 }}
+                styles={{ body: { padding: 20 } }}
               >
                 <div className="mb-4 flex items-start justify-between">
                   <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 text-lg text-slate-700">
@@ -259,12 +302,14 @@ export default function AdminPage() {
 
                 <Statistic
                   title={<span className="text-slate-500">{item.title}</span>}
-                  value={item.value}
+                  value={loadingDashboard ? "-" : item.value}
                   suffix={item.suffix}
-                  valueStyle={{
-                    fontSize: 28,
-                    fontWeight: 700,
-                    color: "#0f172a",
+                  styles={{
+                    value: {
+                      fontSize: 28,
+                      fontWeight: 700,
+                      color: "#0f172a",
+                    },
                   }}
                 />
 
@@ -274,49 +319,12 @@ export default function AdminPage() {
           ))}
         </Row>
 
+        {/* SYSTEM OVERVIEW */}
         <Row gutter={[16, 16]}>
-          {/* Quick actions */}
-          <Col xs={24} xl={14}>
+          <Col xs={24}>
             <Card
-              title={
-                <div>
-                  <div className="text-lg font-semibold text-slate-800">
-                    เมนูลัดสำหรับผู้ดูแลระบบ
-                  </div>
-                  <div className="text-sm font-normal text-slate-400">
-                    เข้าถึงเมนูหลักได้รวดเร็วขึ้น
-                  </div>
-                </div>
-              }
-              bordered={false}
+              variant="borderless"
               className="rounded-[24px] shadow-sm"
-            >
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                {quickMenus.map((menu) => (
-                  <button
-                    key={menu.title}
-                    type="button"
-                    onClick={() => router.push(menu.href)}
-                    className="group rounded-[22px] border border-slate-200 bg-white p-4 text-left transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-sm"
-                  >
-                    <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-slate-700 transition group-hover:bg-slate-900 group-hover:text-white">
-                      {menu.icon}
-                    </div>
-                    <div className="text-base font-semibold text-slate-800">
-                      {menu.title}
-                    </div>
-                    <div className="mt-1 text-sm text-slate-500">
-                      {menu.desc}
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </Card>
-          </Col>
-
-          {/* System health */}
-          <Col xs={24} xl={10}>
-            <Card
               title={
                 <div>
                   <div className="text-lg font-semibold text-slate-800">
@@ -327,32 +335,38 @@ export default function AdminPage() {
                   </div>
                 </div>
               }
-              bordered={false}
-              className="rounded-[24px] shadow-sm"
             >
-              <div className="space-y-5">
-                <div>
-                  <div className="mb-2 flex items-center justify-between text-sm">
-                    <span className="text-slate-500">ความสมบูรณ์ของข้อมูลพนักงาน</span>
-                    <span className="font-semibold text-slate-700">84%</span>
+              <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+                <div className="space-y-5">
+                  <div>
+                    <div className="mb-2 flex items-center justify-between text-sm">
+                      <span className="text-slate-500">
+                        ความสมบูรณ์ของข้อมูลพนักงาน
+                      </span>
+                      <span className="font-semibold text-slate-700">84%</span>
+                    </div>
+                    <Progress percent={84} showInfo={false} />
                   </div>
-                  <Progress percent={84} showInfo={false} strokeColor="#0f172a" />
-                </div>
 
-                <div>
-                  <div className="mb-2 flex items-center justify-between text-sm">
-                    <span className="text-slate-500">ความพร้อมของสิทธิ์ผู้ใช้งาน</span>
-                    <span className="font-semibold text-slate-700">91%</span>
+                  <div>
+                    <div className="mb-2 flex items-center justify-between text-sm">
+                      <span className="text-slate-500">
+                        ความพร้อมของสิทธิ์ผู้ใช้งาน
+                      </span>
+                      <span className="font-semibold text-slate-700">91%</span>
+                    </div>
+                    <Progress percent={91} showInfo={false} status="active" />
                   </div>
-                  <Progress percent={91} showInfo={false} strokeColor="#059669" />
-                </div>
 
-                <div>
-                  <div className="mb-2 flex items-center justify-between text-sm">
-                    <span className="text-slate-500">โครงสร้างองค์กรที่ตั้งค่าครบ</span>
-                    <span className="font-semibold text-slate-700">76%</span>
+                  <div>
+                    <div className="mb-2 flex items-center justify-between text-sm">
+                      <span className="text-slate-500">
+                        โครงสร้างองค์กรที่ตั้งค่าครบ
+                      </span>
+                      <span className="font-semibold text-slate-700">76%</span>
+                    </div>
+                    <Progress percent={76} showInfo={false} />
                   </div>
-                  <Progress percent={76} showInfo={false} strokeColor="#2563eb" />
                 </div>
 
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
@@ -372,64 +386,130 @@ export default function AdminPage() {
                       Permission Active
                     </Tag>
                   </div>
+
+                  <div className="mt-5 grid grid-cols-2 gap-4 md:grid-cols-3">
+                    <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                      <div className="text-sm text-slate-400">Companies</div>
+                      <div className="mt-1 text-lg font-semibold text-slate-800">
+                        {dashboard.companies || 0}
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                      <div className="text-sm text-slate-400">Branches</div>
+                      <div className="mt-1 text-lg font-semibold text-slate-800">
+                        {dashboard.branches || 0}
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                      <div className="text-sm text-slate-400">Departments</div>
+                      <div className="mt-1 text-lg font-semibold text-slate-800">
+                        {dashboard.departments || 0}
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                      <div className="text-sm text-slate-400">Divisions</div>
+                      <div className="mt-1 text-lg font-semibold text-slate-800">
+                        {dashboard.divisions || 0}
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                      <div className="text-sm text-slate-400">Units</div>
+                      <div className="mt-1 text-lg font-semibold text-slate-800">
+                        {dashboard.units || 0}
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                      <div className="text-sm text-slate-400">Positions</div>
+                      <div className="mt-1 text-lg font-semibold text-slate-800">
+                        {dashboard.positions || 0}
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </Card>
           </Col>
         </Row>
 
+        {/* QUICK MENU */}
         <Row gutter={[16, 16]}>
-          {/* Activity */}
-          <Col xs={24} xl={12}>
+          <Col xs={24}>
             <Card
+              variant="borderless"
+              className="rounded-[24px] shadow-sm"
               title={
                 <div>
                   <div className="text-lg font-semibold text-slate-800">
-                    กิจกรรมล่าสุด
+                    เมนูลัดสำหรับผู้ดูแลระบบ
                   </div>
                   <div className="text-sm font-normal text-slate-400">
-                    ตัวอย่าง timeline สำหรับ dashboard
+                    เข้าถึงเมนูหลักได้รวดเร็วขึ้น
                   </div>
                 </div>
               }
-              bordered={false}
-              className="rounded-[24px] shadow-sm"
             >
-              <List
-                dataSource={activities}
-                renderItem={(item) => (
-                  <List.Item className="!px-0">
-                    <div className="flex w-full items-start gap-3">
-                      <div
-                        className={`mt-1 h-9 w-9 shrink-0 rounded-xl flex items-center justify-center ${
-                          item.status === "success"
-                            ? "bg-emerald-100 text-emerald-700"
-                            : item.status === "processing"
-                            ? "bg-blue-100 text-blue-700"
-                            : "bg-slate-100 text-slate-600"
-                        }`}
-                      >
-                        <ClockCircleOutlined />
+              {quickMenus.length > 0 ? (
+                <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+                  {quickMenus.map((menu) => (
+                    <button
+                      key={menu.href}
+                      type="button"
+                      onClick={() => router.push(menu.href)}
+                      className="group relative flex flex-col overflow-hidden rounded-[24px] border border-slate-100 bg-white p-6 text-left transition-all duration-300 hover:-translate-y-1 hover:border-blue-200 hover:shadow-[0_20px_40px_-15px_rgba(0,0,0,0.1)]"
+                    >
+                      {/* เอฟเฟกต์แสงฟุ้งด้านหลังเวลา Hover */}
+                      <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-blue-50/0 transition-all duration-500 group-hover:bg-blue-50/50" />
+
+                      {/* arrow */}
+                      <div className="absolute right-5 top-5 flex h-9 w-9 items-center justify-center rounded-full bg-slate-50 text-slate-300 transition-all duration-300 group-hover:bg-blue-600 group-hover:text-white">
+                        <ArrowUpOutlined rotate={45} style={{ fontSize: '20px' }} />
                       </div>
 
-                      <div className="min-w-0 flex-1">
-                        <div className="font-medium text-slate-800">
-                          {item.title}
-                        </div>
-                        <div className="mt-1 text-sm text-slate-400">
-                          {item.time}
-                        </div>
+                      {/* ส่วนของ Icon */}
+                      <div className="relative mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-50 text-2xl text-slate-600 transition-all duration-300 group-hover:scale-110 group-hover:bg-blue-700 group-hover:text-white group-hover:shadow-xl group-hover:shadow-slate-200">
+                        {menu.icon}
                       </div>
-                    </div>
-                  </List.Item>
-                )}
-              />
+
+                      {/* ข้อความหลัก */}
+                      <div className="relative">
+                        <h3 className="text-lg font-bold tracking-tight text-slate-800 transition-colors group-hover:text-blue-600">
+                          {menu.label}
+                        </h3>
+                        <p className="mt-1.5 text-sm leading-relaxed text-slate-500">
+                          เข้าถึงเมนู {menu.label} และจัดการข้อมูลทั้งหมดในส่วนนี้
+                        </p>
+                      </div>
+
+                      {/* Action Indicator (เส้นขีดด้านล่างที่จะขยายเมื่อ Hover) */}
+                      <div className="mt-6 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-blue-600">
+                        <span className="translate-x-[-10px] opacity-0 transition-all duration-300 group-hover:translate-x-0 group-hover:opacity-100">
+                          Explore Menu
+                        </span>
+                        <div className="h-[2px] w-0 bg-blue-600 transition-all duration-300 group-hover:w-8" />
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-6 py-10 text-center text-sm text-slate-400">
+                  ไม่มีเมนูที่คุณสามารถเข้าถึงได้
+                </div>
+              )}
             </Card>
           </Col>
+        </Row>
 
-          {/* Overview */}
-          <Col xs={24} xl={12}>
+        {/* USAGE OVERVIEW */}
+        <Row gutter={[16, 16]}>
+          <Col xs={24}>
             <Card
+              variant="borderless"
+              className="rounded-[24px] shadow-sm"
               title={
                 <div>
                   <div className="text-lg font-semibold text-slate-800">
@@ -440,8 +520,6 @@ export default function AdminPage() {
                   </div>
                 </div>
               }
-              bordered={false}
-              className="rounded-[24px] shadow-sm"
             >
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
@@ -461,7 +539,7 @@ export default function AdminPage() {
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                   <div className="text-sm text-slate-400">Employee Code</div>
                   <div className="mt-1 text-lg font-semibold text-slate-800">
-                    {user?.employee_code || "-"}
+                    {dashboard.employees || 0} คน
                   </div>
                 </div>
 
@@ -473,11 +551,133 @@ export default function AdminPage() {
                 </div>
               </div>
 
-              <div className="mt-5 rounded-2xl border border-dashed border-slate-300 bg-white p-4 text-sm text-slate-500">
-                ตอนนี้หน้า dashboard ใช้ข้อมูลตัวอย่างเพื่อออกแบบ UI ก่อน
-                ภายหลังสามารถต่อ API จริงสำหรับ employee count, roles count,
-                active users, recent activity ได้ทันที
+              <div className="mt-5 grid grid-cols-2 gap-4 md:grid-cols-3">
+                <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                  <div className="text-sm text-slate-400">Companies</div>
+                  <div className="mt-1 text-lg font-semibold text-slate-800">
+                    {dashboard.companies || 0} บริษัท
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                  <div className="text-sm text-slate-400">Branches</div>
+                  <div className="mt-1 text-lg font-semibold text-slate-800">
+                    {dashboard.branches || 0} สาขา
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                  <div className="text-sm text-slate-400">Departments</div>
+                  <div className="mt-1 text-lg font-semibold text-slate-800">
+                    {dashboard.departments || 0} แผนก
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                  <div className="text-sm text-slate-400">Divisions</div>
+                  <div className="mt-1 text-lg font-semibold text-slate-800">
+                    {dashboard.divisions || 0} ฝ่าย
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                  <div className="text-sm text-slate-400">Units</div>
+                  <div className="mt-1 text-lg font-semibold text-slate-800">
+                    {dashboard.units || 0} หน่วยงาน
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                  <div className="text-sm text-slate-400">Positions</div>
+                  <div className="mt-1 text-lg font-semibold text-slate-800">
+                    {dashboard.positions || 0} ตำแหน่ง
+                  </div>
+                </div>
               </div>
+
+              <div className="mt-5 rounded-2xl border border-dashed border-slate-300 bg-white p-4 text-sm text-slate-500">
+                Dashboard นี้เชื่อมข้อมูลจริงจากฐานข้อมูลแล้ว และเมนูจะแสดงตามสิทธิ์ของผู้ใช้งานปัจจุบัน
+              </div>
+            </Card>
+          </Col>
+        </Row>
+
+        {/* RECENT ACTIVITIES */}
+        <Row gutter={[16, 16]}>
+          <Col xs={24}>
+            <Card
+              variant="borderless"
+              className="rounded-[24px] shadow-sm"
+              title={
+                <div>
+                  <div className="text-lg font-semibold text-slate-800">
+                    กิจกรรมล่าสุด
+                  </div>
+                  <div className="text-sm font-normal text-slate-400">
+                    ดึงข้อมูลล่าสุดจากฐานข้อมูลจริง
+                  </div>
+                </div>
+              }
+            >
+              {loadingDashboard ? (
+                <div className="space-y-4">
+                  {[...Array(4)].map((_, index) => (
+                    <div
+                      key={index}
+                      className="rounded-2xl border border-slate-200 bg-white p-4"
+                    >
+                      <Skeleton active paragraph={{ rows: 2 }} title={false} />
+                    </div>
+                  ))}
+                </div>
+              ) : dashboard.recent_activities?.length > 0 ? (
+                <>
+                  <div className="space-y-4">
+                    {dashboard.recent_activities.map((item) => (
+                      <div
+                        key={item.id}
+                        className="flex items-start gap-4 rounded-2xl border border-slate-200 bg-white p-4"
+                      >
+                        <div
+                          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${getActivityColor(
+                            item.action
+                          )}`}
+                        >
+                          <ClockCircleOutlined />
+                        </div>
+
+                        <div className="min-w-0 flex-1">
+                          <div className="text-base font-semibold text-slate-800">
+                            {item.title}
+                          </div>
+
+                          <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-500">
+                            <span>{formatThaiDateTime(item.activity_at)}</span>
+                            <span className="text-slate-300">•</span>
+                            <span className="capitalize">{item.entity}</span>
+                            <span className="text-slate-300">•</span>
+                            <span className="capitalize">{item.action}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="mt-6 flex justify-end">
+                    <Pagination
+                      current={activityPage}
+                      pageSize={activityPageSize}
+                      total={dashboard.recent_activities_total || 0}
+                      onChange={(page) => setActivityPage(page)}
+                      showSizeChanger={false}
+                    />
+                  </div>
+                </>
+              ) : (
+                <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-6 py-10 text-center text-sm text-slate-400">
+                  ยังไม่พบกิจกรรมล่าสุดในระบบ
+                </div>
+              )}
             </Card>
           </Col>
         </Row>
