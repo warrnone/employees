@@ -207,38 +207,45 @@ export default function AdminPage() {
         {/* HERO */}
         <Card
           variant="borderless"
-          className="overflow-hidden rounded-[28px] shadow-sm"
+          className="overflow-hidden rounded-[32px] border border-slate-200 shadow-sm"
           styles={{ body: { padding: 0 } }}
         >
-          <div className="relative overflow-hidden rounded-[28px] bg-gradient-to-r from-slate-950 via-slate-900 to-emerald-900 px-6 py-8 text-white lg:px-8 lg:py-10">
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.18),transparent_35%)]" />
+          <div className="relative overflow-hidden rounded-[32px] bg-gradient-to-br from-sky-50 via-white to-emerald-50 px-6 py-8 lg:px-8 lg:py-10">
+            {/* background blur */}
+            <div className="absolute -top-20 right-0 h-72 w-72 rounded-full bg-sky-200/40 blur-3xl" />
+            <div className="absolute bottom-0 left-0 h-72 w-72 rounded-full bg-emerald-200/30 blur-3xl" />
 
-            <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+            <div className="relative z-10 flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
+              {/* LEFT */}
               <div className="max-w-3xl">
-                <div className="mb-3 flex flex-wrap items-center gap-2">
-                  <Tag className="m-0 rounded-full border-0 bg-white px-3 py-1 text-slate-900">
+                <div className="mb-4 flex flex-wrap items-center gap-2">
+                  <Tag className="m-0 rounded-full border-0 bg-sky-100 px-4 py-1 text-sky-700">
                     Employee Master
                   </Tag>
 
-                  <Tag className="m-0 rounded-full border-0 bg-white/15 px-3 py-1 text-white">
+                  <Tag className="m-0 rounded-full border-0 bg-emerald-100 px-4 py-1 text-emerald-700">
                     Dashboard
                   </Tag>
                 </div>
 
-                <Title level={2} className="!mb-2 !text-white">
-                  ยินดีต้อนรับ, {user?.full_name || user?.username || "ผู้ใช้งาน"}
+                <Title level={2} className="!mb-2 !text-slate-800">
+                  ยินดีต้อนรับ,{" "}
+                  <span className="bg-gradient-to-r from-sky-600 to-emerald-500 bg-clip-text text-transparent">
+                    {user?.full_name || user?.username || "ผู้ใช้งาน"}
+                  </span>
                 </Title>
 
-                <Text className="text-base !text-slate-200">
+                <Text className="block max-w-2xl text-base leading-relaxed !text-slate-500">
                   ภาพรวมการจัดการข้อมูลพนักงาน โครงสร้างองค์กร
                   และสิทธิ์ผู้ใช้งานในระบบ Employee Master
+                  ให้ใช้งานง่าย ดูสบายตา และเข้าถึงข้อมูลสำคัญได้รวดเร็ว
                 </Text>
 
-                <div className="mt-5 flex flex-wrap items-center gap-3">
+                <div className="mt-6 flex flex-wrap items-center gap-3">
                   <Button
                     type="primary"
                     size="large"
-                    className="!rounded-2xl !border-0 !bg-white !px-5 !text-slate-900 hover:!bg-slate-100"
+                    className="!h-[50px] !rounded-2xl !border-0 !bg-sky-500 !px-6 !font-medium hover:!bg-sky-600"
                     onClick={() => router.push("/admin/employees")}
                   >
                     ไปหน้าพนักงาน
@@ -246,7 +253,7 @@ export default function AdminPage() {
 
                   <Button
                     size="large"
-                    className="!rounded-2xl !border-white/20 !bg-white/10 !px-5 !text-white hover:!border-white/30 hover:!bg-white/15 hover:!text-white"
+                    className="!h-[50px] !rounded-2xl !border-slate-200 !bg-white !px-6 !text-slate-700 shadow-sm hover:!border-sky-200 hover:!text-sky-600"
                     onClick={() => router.push("/admin/user-accounts")}
                   >
                     จัดการผู้ใช้งาน
@@ -254,25 +261,30 @@ export default function AdminPage() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-4 rounded-[24px] border border-white/10 bg-white/10 p-5 backdrop-blur">
+              {/* RIGHT */}
+              <div className="flex min-w-[300px] items-center gap-4 rounded-[28px] border border-white/60 bg-white/70 p-5 shadow-lg backdrop-blur-xl">
                 <Avatar
-                  size={64}
+                  size={72}
                   icon={<UserOutlined />}
-                  className="!bg-emerald-500"
+                  className="!bg-gradient-to-br !from-sky-400 !to-emerald-400"
                 />
 
-                <div>
-                  <div className="text-2xl font-bold text-white">
+                <div className="flex-1">
+                  <div className="text-xl font-bold text-slate-800">
                     {user?.username || "-"}
                   </div>
 
-                  <div className="text-sm text-slate-200">
+                  <div className="mt-1 text-sm text-slate-500">
                     {user?.role_name || user?.role_code || "User"}
                   </div>
 
-                  <div className="mt-3">
-                    <Tag className="m-0 rounded-full border-0 bg-white px-3 py-1 text-slate-900">
+                  <div className="mt-4 flex flex-wrap items-center gap-2">
+                    <Tag className="m-0 rounded-full border-0 bg-emerald-100 px-3 py-1 text-emerald-700">
                       Active Session
+                    </Tag>
+
+                    <Tag className="m-0 rounded-full border-0 bg-slate-100 px-3 py-1 text-slate-500">
+                      Online
                     </Tag>
                   </div>
                 </div>
