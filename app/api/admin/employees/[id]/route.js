@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseServer";
+import { writeActivityLog } from "@/lib/activityLogger";
 
 /* =========================
    PATCH: update employee
@@ -66,6 +67,14 @@ export async function PATCH(req, { params }) {
         { status: 400 }
       );
     }
+
+    const { data: oldEmployee, error: oldEmployeeError } = await supabaseAdmin
+      .from("employees")
+      .select("*")
+      .eq("id", id)
+      .single();
+
+    if (oldEmployeeError) throw oldEmployeeError;
 
     const { error: updateError } = await supabaseAdmin
       .from("employees")
@@ -144,6 +153,36 @@ export async function PATCH(req, { params }) {
 
     if (error) throw error;
 
+    await writeActivityLog({
+      module_name: "employees",
+      action_type: "update",
+      reference_table: "employees",
+      reference_id: data.id,
+      description: `แก้ไขข้อมูลพนักงาน ${data.first_name_th} ${data.last_name_th} (${data.employee_code})`,
+      old_data: oldEmployee,
+      new_data: {
+        employee_code: data.employee_code,
+        first_name_th: data.first_name_th,
+        last_name_th: data.last_name_th,
+        first_name_en: data.first_name_en,
+        last_name_en: data.last_name_en,
+        nick_name: data.nick_name,
+        gender: data.gender,
+        phone: data.phone,
+        email: data.email,
+        nationality: data.nationality,
+        hire_date: data.hire_date,
+        employment_type: data.employment_type,
+        employee_status_id: data.employee_status_id,
+        status: data.status,
+        branch_id: data.branch_id,
+        department_id: data.department_id,
+        division_id: data.division_id,
+        unit_id: data.unit_id,
+        position_id: data.position_id,
+      },
+    });
+
     return NextResponse.json({
       success: true,
       message: "อัพเดทข้อมูลพนักงานสำเร็จ",
@@ -200,12 +239,29 @@ export async function DELETE(req, { params }) {
   try {
     const { id } = await params;
 
+    const { data: oldEmployee, error: oldEmployeeError } = await supabaseAdmin
+      .from("employees")
+      .select("*")
+      .eq("id", id)
+      .single();
+
+    if (oldEmployeeError) throw oldEmployeeError;
+
     const { error } = await supabaseAdmin
       .from("employees")
       .delete()
       .eq("id", id);
 
     if (error) throw error;
+
+    await writeActivityLog({
+      module_name: "employees",
+      action_type: "delete",
+      reference_table: "employees",
+      reference_id: oldEmployee.id,
+      description: `ลบข้อมูลพนักงาน ${oldEmployee.first_name_th} ${oldEmployee.last_name_th} (${oldEmployee.employee_code})`,
+      old_data: oldEmployee,
+    });
 
     return NextResponse.json({
       success: true,

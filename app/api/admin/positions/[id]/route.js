@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseServer";
+import { writeActivityLog } from "@/lib/activityLogger";
 
 /* =========================
    PATCH: update position
@@ -42,6 +43,22 @@ export async function PATCH(req, { params }) {
       );
     }
 
+    const { data: oldPosition, error: oldPositionError } = await supabaseAdmin
+      .from("positions")
+      .select(`
+        id,
+        position_code,
+        position_name,
+        position_group,
+        position_level,
+        status,
+        sort_order
+      `)
+      .eq("id", id)
+      .single();
+
+    if (oldPositionError) throw oldPositionError;
+
     const { error: updateError } = await supabaseAdmin
       .from("positions")
       .update({
@@ -73,6 +90,30 @@ export async function PATCH(req, { params }) {
 
     if (error) throw error;
 
+    await writeActivityLog({
+      module_name: "positions",
+      action_type: "update",
+      reference_table: "positions",
+      reference_id: data.id,
+      description: `แก้ไขตำแหน่ง ${data.position_code} - ${data.position_name}`,
+      old_data: {
+        position_code: oldPosition.position_code,
+        position_name: oldPosition.position_name,
+        position_group: oldPosition.position_group,
+        position_level: oldPosition.position_level,
+        status: oldPosition.status,
+        sort_order: oldPosition.sort_order,
+      },
+      new_data: {
+        position_code: data.position_code,
+        position_name: data.position_name,
+        position_group: data.position_group,
+        position_level: data.position_level,
+        status: data.status,
+        sort_order: data.sort_order,
+      },
+    });
+
     return NextResponse.json({
       success: true,
       message: "อัพเดทข้อมูลตำแหน่งสำเร็จ",
@@ -98,12 +139,44 @@ export async function DELETE(req, { params }) {
   try {
     const { id } = await params;
 
+    const { data: oldPosition, error: oldPositionError } = await supabaseAdmin
+      .from("positions")
+      .select(`
+        id,
+        position_code,
+        position_name,
+        position_group,
+        position_level,
+        status,
+        sort_order
+      `)
+      .eq("id", id)
+      .single();
+
+    if (oldPositionError) throw oldPositionError;
+
     const { error } = await supabaseAdmin
       .from("positions")
       .delete()
       .eq("id", id);
 
     if (error) throw error;
+
+    await writeActivityLog({
+      module_name: "positions",
+      action_type: "delete",
+      reference_table: "positions",
+      reference_id: oldPosition.id,
+      description: `ลบตำแหน่ง ${oldPosition.position_code} - ${oldPosition.position_name}`,
+      old_data: {
+        position_code: oldPosition.position_code,
+        position_name: oldPosition.position_name,
+        position_group: oldPosition.position_group,
+        position_level: oldPosition.position_level,
+        status: oldPosition.status,
+        sort_order: oldPosition.sort_order,
+      },
+    });
 
     return NextResponse.json({
       success: true,

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseServer";
+import { writeActivityLog } from "@/lib/activityLogger";
 
 /* =========================
    GET: list roles
@@ -100,6 +101,21 @@ export async function POST(req) {
       .single();
 
     if (error) throw error;
+
+    await writeActivityLog({
+      module_name: "roles",
+      action_type: "create",
+      reference_table: "roles",
+      reference_id: data.id,
+      description: `เพิ่ม Role ${data.role_code} - ${data.role_name}`,
+      new_data: {
+        role_code: data.role_code,
+        role_name: data.role_name,
+        description: data.description,
+        is_active: data.is_active,
+        is_system: data.is_system,
+      },
+    });
 
     return NextResponse.json({
       success: true,

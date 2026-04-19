@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseServer";
+import { writeActivityLog } from "@/lib/activityLogger";
 
 export async function PATCH(req, { params }) {
   try {
@@ -25,6 +26,27 @@ export async function PATCH(req, { params }) {
         { status: 400 }
       );
     }
+
+    const { data: oldBranch, error: oldBranchError } = await supabaseAdmin
+      .from("branches")
+      .select(`
+        id,
+        branch_code,
+        branch_name,
+        company_id,
+        phone,
+        status,
+        companies (
+          id,
+          company_code,
+          company_name_th,
+          company_name_en
+        )
+      `)
+      .eq("id", id)
+      .single();
+
+    if (oldBranchError) throw oldBranchError;
 
     const { data, error } = await supabaseAdmin
       .from("branches")
@@ -67,6 +89,38 @@ export async function PATCH(req, { params }) {
       throw error;
     }
 
+    await writeActivityLog({
+      module_name: "branches",
+      action_type: "update",
+      reference_table: "branches",
+      reference_id: data.id,
+      description: `แก้ไขสังกัด ${data.branch_code} - ${data.branch_name}`,
+      old_data: {
+        branch_code: oldBranch.branch_code,
+        branch_name: oldBranch.branch_name,
+        company_id: oldBranch.company_id,
+        company_code: oldBranch.companies?.company_code || "",
+        company_name:
+          oldBranch.companies?.company_name_th ||
+          oldBranch.companies?.company_name_en ||
+          "",
+        phone: oldBranch.phone,
+        status: oldBranch.status,
+      },
+      new_data: {
+        branch_code: data.branch_code,
+        branch_name: data.branch_name,
+        company_id: data.company_id,
+        company_code: data.companies?.company_code || "",
+        company_name:
+          data.companies?.company_name_th ||
+          data.companies?.company_name_en ||
+          "",
+        phone: data.phone,
+        status: data.status,
+      },
+    });
+
     return NextResponse.json({
       success: true,
       message: "แก้ไขข้อมูลสังกัดสำเร็จ",
@@ -106,7 +160,50 @@ export async function DELETE(req, { params }) {
       .delete()
       .eq("id", id);
 
+    
+    const { data: oldBranch, error: oldBranchError } = await supabaseAdmin
+      .from("branches")
+      .select(`
+        id,
+        branch_code,
+        branch_name,
+        company_id,
+        phone,
+        status,
+        companies (
+          id,
+          company_code,
+          company_name_th,
+          company_name_en
+        )
+      `)
+      .eq("id", id)
+      .single();
+
+    if (oldBranchError) throw oldBranchError;
+
     if (error) throw error;
+
+
+    await writeActivityLog({
+      module_name: "branches",
+      action_type: "delete",
+      reference_table: "branches",
+      reference_id: oldBranch.id,
+      description: `ลบสังกัด ${oldBranch.branch_code} - ${oldBranch.branch_name}`,
+      old_data: {
+        branch_code: oldBranch.branch_code,
+        branch_name: oldBranch.branch_name,
+        company_id: oldBranch.company_id,
+        company_code: oldBranch.companies?.company_code || "",
+        company_name:
+          oldBranch.companies?.company_name_th ||
+          oldBranch.companies?.company_name_en ||
+          "",
+        phone: oldBranch.phone,
+        status: oldBranch.status,
+      },
+    });
 
     return NextResponse.json({
       success: true,

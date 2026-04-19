@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseServer";
+import { writeActivityLog } from "@/lib/activityLogger";
 
 export async function PATCH(req, { params }) {
   try {
@@ -39,6 +40,27 @@ export async function PATCH(req, { params }) {
       );
     }
 
+    const { data: oldUnit, error: oldUnitError } = await supabaseAdmin
+      .from("units")
+      .select(`
+        id,
+        unit_code,
+        unit_name,
+        division_id,
+        status,
+        sort_order,
+        divisions (
+          division_name,
+          departments (
+            department_name
+          )
+        )
+      `)
+      .eq("id", id)
+      .single();
+
+    if (oldUnitError) throw oldUnitError;
+
     const { error: updateError } = await supabaseAdmin
       .from("units")
       .update({
@@ -74,6 +96,34 @@ export async function PATCH(req, { params }) {
 
     if (error) throw error;
 
+    await writeActivityLog({
+      module_name: "units",
+      action_type: "update",
+      reference_table: "units",
+      reference_id: data.id,
+      description: `แก้ไขหน่วย ${data.unit_code} - ${data.unit_name}`,
+      old_data: {
+        unit_code: oldUnit.unit_code,
+        unit_name: oldUnit.unit_name,
+        division_id: oldUnit.division_id,
+        division_name: oldUnit.divisions?.division_name || "",
+        department_name:
+          oldUnit.divisions?.departments?.department_name || "",
+        status: oldUnit.status,
+        sort_order: oldUnit.sort_order,
+      },
+      new_data: {
+        unit_code: data.unit_code,
+        unit_name: data.unit_name,
+        division_id: data.division_id,
+        division_name: data.divisions?.division_name || "",
+        department_name:
+          data.divisions?.departments?.department_name || "",
+        status: data.status,
+        sort_order: data.sort_order,
+      },
+    });
+
     return NextResponse.json({
       success: true,
       message: "อัพเดทข้อมูลหน่วยสำเร็จ",
@@ -103,12 +153,51 @@ export async function DELETE(req, { params }) {
   try {
     const { id } = await params;
 
+    const { data: oldUnit, error: oldUnitError } = await supabaseAdmin
+      .from("units")
+      .select(`
+        id,
+        unit_code,
+        unit_name,
+        division_id,
+        status,
+        sort_order,
+        divisions (
+          division_name,
+          departments (
+            department_name
+          )
+        )
+      `)
+      .eq("id", id)
+      .single();
+
+    if (oldUnitError) throw oldUnitError;
+
     const { error } = await supabaseAdmin
       .from("units")
       .delete()
       .eq("id", id);
 
     if (error) throw error;
+
+    await writeActivityLog({
+      module_name: "units",
+      action_type: "delete",
+      reference_table: "units",
+      reference_id: oldUnit.id,
+      description: `ลบหน่วย ${oldUnit.unit_code} - ${oldUnit.unit_name}`,
+      old_data: {
+        unit_code: oldUnit.unit_code,
+        unit_name: oldUnit.unit_name,
+        division_id: oldUnit.division_id,
+        division_name: oldUnit.divisions?.division_name || "",
+        department_name:
+          oldUnit.divisions?.departments?.department_name || "",
+        status: oldUnit.status,
+        sort_order: oldUnit.sort_order,
+      },
+    });
 
     return NextResponse.json({
       success: true,

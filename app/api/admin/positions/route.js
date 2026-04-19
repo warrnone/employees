@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseServer";
+import { writeActivityLog } from "@/lib/activityLogger";
 
 /* =========================
    GET: list positions
@@ -153,6 +154,22 @@ export async function POST(req) {
       .single();
 
     if (error) throw error;
+
+    await writeActivityLog({
+      module_name: "positions",
+      action_type: "create",
+      reference_table: "positions",
+      reference_id: data.id,
+      description: `เพิ่มตำแหน่ง ${data.position_code} - ${data.position_name}`,
+      new_data: {
+        position_code: data.position_code,
+        position_name: data.position_name,
+        position_group: data.position_group,
+        position_level: data.position_level,
+        status: data.status,
+        sort_order: data.sort_order,
+      },
+    });
 
     return NextResponse.json({
       success: true,

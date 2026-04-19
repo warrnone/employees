@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseServer";
+import { writeActivityLog } from "@/lib/activityLogger";
 
 function getEmployeeTypeDigit({ nationality, employmentType, positionLevel }) {
   const level = String(positionLevel || "").toUpperCase();
@@ -472,6 +473,36 @@ export async function POST(req) {
       .single();
 
     if (error) throw error;
+
+
+    await writeActivityLog({
+      module_name: "employees",
+      action_type: "create",
+      reference_table: "employees",
+      reference_id: data.id,
+      description: `เพิ่มพนักงาน ${data.first_name_th} ${data.last_name_th} (${data.employee_code})`,
+      new_data: {
+        employee_code: data.employee_code,
+        first_name_th: data.first_name_th,
+        last_name_th: data.last_name_th,
+        first_name_en: data.first_name_en,
+        last_name_en: data.last_name_en,
+        nick_name: data.nick_name,
+        gender: data.gender,
+        phone: data.phone,
+        email: data.email,
+        nationality: data.nationality,
+        hire_date: data.hire_date,
+        employment_type: data.employment_type,
+        status: data.status,
+        employee_status_id: data.employee_status_id,
+        branch_id: data.branch_id,
+        department_id: data.department_id,
+        division_id: data.division_id,
+        unit_id: data.unit_id,
+        position_id: data.position_id,
+      },
+    });
 
     return NextResponse.json({
       success: true,

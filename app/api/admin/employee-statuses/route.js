@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseServer";
+import { writeActivityLog } from "@/lib/activityLogger";
 
 /* =========================
    GET: list employee statuses
@@ -122,6 +123,21 @@ export async function POST(req) {
       .single();
 
     if (error) throw error;
+
+    await writeActivityLog({
+      module_name: "employee_statuses",
+      action_type: "create",
+      reference_table: "employee_statuses",
+      reference_id: data.id,
+      description: `เพิ่มสถานะพนักงาน ${data.status_code} - ${data.status_name}`,
+      new_data: {
+        status_code: data.status_code,
+        status_name: data.status_name,
+        color: data.color,
+        status: data.status,
+        sort_order: data.sort_order,
+      },
+    });
 
     return NextResponse.json({
       success: true,

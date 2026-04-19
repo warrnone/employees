@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseServer";
+import { writeActivityLog } from "@/lib/activityLogger";
 
 /* =========================
    PATCH: update role
@@ -75,6 +76,22 @@ export async function PATCH(req, { params }) {
 
     if (error) throw error;
 
+    await writeActivityLog({
+      module_name: "roles",
+      action_type: "update",
+      reference_table: "roles",
+      reference_id: data.id,
+      description: `แก้ไข Role ${data.role_code} - ${data.role_name}`,
+      old_data: oldRole,
+      new_data: {
+        role_code: data.role_code,
+        role_name: data.role_name,
+        description: data.description,
+        is_active: data.is_active,
+        is_system: data.is_system,
+      },
+    });
+
     return NextResponse.json({
       success: true,
       message: "อัพเดท Role สำเร็จ",
@@ -142,6 +159,15 @@ export async function DELETE(req, { params }) {
       .eq("id", id);
 
     if (error) throw error;
+
+    await writeActivityLog({
+      module_name: "roles",
+      action_type: "delete",
+      reference_table: "roles",
+      reference_id: role.id,
+      description: `ลบ Role ${role.role_code} - ${role.role_name}`,
+      old_data: role,
+    });
 
     return NextResponse.json({
       success: true,

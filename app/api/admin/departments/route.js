@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseServer";
+import { writeActivityLog } from "@/lib/activityLogger";
 
 export async function GET(req) {
   try {
@@ -169,6 +170,26 @@ export async function POST(req) {
       .single();
 
     if (fetchError) throw fetchError;
+
+    await writeActivityLog({
+      module_name: "departments",
+      action_type: "create",
+      reference_table: "departments",
+      reference_id: fullDepartment.id,
+      description: `เพิ่มแผนก ${fullDepartment.department_code} - ${fullDepartment.department_name}`,
+      new_data: {
+        department_code: fullDepartment.department_code,
+        department_name: fullDepartment.department_name,
+        status: fullDepartment.status,
+        branch_ids: branchRows.map((row) => row.branch_id),
+        branch_codes: branchRows
+          .map((row) => row.branches?.branch_code)
+          .filter(Boolean),
+        branch_names: branchRows
+          .map((row) => row.branches?.branch_name)
+          .filter(Boolean),
+      },
+    });
 
     const branchRows = fullDepartment.branch_departments || [];
 

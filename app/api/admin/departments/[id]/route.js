@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseServer";
+import { writeActivityLog } from "@/lib/activityLogger";
 
 export async function PATCH(req, { params }) {
   try {
@@ -38,6 +39,27 @@ export async function PATCH(req, { params }) {
         { status: 400 }
       );
     }
+
+    const { data: oldDepartment, error: oldDepartmentError } = await supabaseAdmin
+      .from("departments")
+      .select(`
+        id,
+        department_code,
+        department_name,
+        status,
+        branch_departments (
+          branch_id,
+          branches (
+            id,
+            branch_code,
+            branch_name
+          )
+        )
+      `)
+      .eq("id", id)
+      .single();
+
+    if (oldDepartmentError) throw oldDepartmentError;
 
     const { error: updateError } = await supabaseAdmin
       .from("departments")
@@ -93,6 +115,38 @@ export async function PATCH(req, { params }) {
 
     if (error) throw error;
 
+    await writeActivityLog({
+      module_name: "departments",
+      action_type: "update",
+      reference_table: "departments",
+      reference_id: data.id,
+      description: `แก้ไขแผนก ${data.department_code} - ${data.department_name}`,
+      old_data: {
+        department_code: oldDepartment.department_code,
+        department_name: oldDepartment.department_name,
+        status: oldDepartment.status,
+        branch_ids: (oldDepartment.branch_departments || []).map((row) => row.branch_id),
+        branch_codes: (oldDepartment.branch_departments || [])
+          .map((row) => row.branches?.branch_code)
+          .filter(Boolean),
+        branch_names: (oldDepartment.branch_departments || [])
+          .map((row) => row.branches?.branch_name)
+          .filter(Boolean),
+      },
+      new_data: {
+        department_code: data.department_code,
+        department_name: data.department_name,
+        status: data.status,
+        branch_ids: branchRows.map((row) => row.branch_id),
+        branch_codes: branchRows
+          .map((row) => row.branches?.branch_code)
+          .filter(Boolean),
+        branch_names: branchRows
+          .map((row) => row.branches?.branch_name)
+          .filter(Boolean),
+      },
+    });
+
     const branchRows = data.branch_departments || [];
 
     return NextResponse.json({
@@ -128,12 +182,53 @@ export async function DELETE(req, { params }) {
   try {
     const { id } = await params;
 
+    const { data: oldDepartment, error: oldDepartmentError } = await supabaseAdmin
+      .from("departments")
+      .select(`
+        id,
+        department_code,
+        department_name,
+        status,
+        branch_departments (
+          branch_id,
+          branches (
+            id,
+            branch_code,
+            branch_name
+          )
+        )
+      `)
+      .eq("id", id)
+      .single();
+
+    if (oldDepartmentError) throw oldDepartmentError;
+
     const { error } = await supabaseAdmin
       .from("departments")
       .delete()
       .eq("id", id);
 
     if (error) throw error;
+
+    await writeActivityLog({
+      module_name: "departments",
+      action_type: "delete",
+      reference_table: "departments",
+      reference_id: oldDepartment.id,
+      description: `ลบแผนก ${oldDepartment.department_code} - ${oldDepartment.department_name}`,
+      old_data: {
+        department_code: oldDepartment.department_code,
+        department_name: oldDepartment.department_name,
+        status: oldDepartment.status,
+        branch_ids: (oldDepartment.branch_departments || []).map((row) => row.branch_id),
+        branch_codes: (oldDepartment.branch_departments || [])
+          .map((row) => row.branches?.branch_code)
+          .filter(Boolean),
+        branch_names: (oldDepartment.branch_departments || [])
+          .map((row) => row.branches?.branch_name)
+          .filter(Boolean),
+      },
+    });
 
     return NextResponse.json({
       success: true,

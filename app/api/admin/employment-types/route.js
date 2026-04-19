@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseServer";
+import { writeActivityLog } from "@/lib/activityLogger";
 
 export async function GET(req) {
   try {
@@ -101,6 +102,20 @@ export async function POST(req) {
       .single();
 
     if (error) throw error;
+
+    await writeActivityLog({
+      module_name: "employment_types",
+      action_type: "create",
+      reference_table: "employment_types",
+      reference_id: data.id,
+      description: `เพิ่มประเภทการจ้าง ${data.type_code} - ${data.type_name}`,
+      new_data: {
+        type_code: data.type_code,
+        type_name: data.type_name,
+        status: data.status,
+        sort_order: data.sort_order,
+      },
+    });
 
     return NextResponse.json({
       success: true,

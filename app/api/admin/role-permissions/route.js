@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseServer";
+import { writeActivityLog } from "@/lib/activityLogger";
 
 /* =========================
    GET: list assigned permissions by role
@@ -86,6 +87,19 @@ export async function PUT(req) {
 
     if (roleError) throw roleError;
 
+    const { data: oldPermissions, error: oldPermissionsError } = await supabaseAdmin
+      .from("role_permissions")
+      .select(`
+        permission_id,
+        permissions (
+          permission_code,
+          permission_name
+        )
+      `)
+      .eq("role_id", role_id);
+
+    if (oldPermissionsError) throw oldPermissionsError;
+
     const { error: deleteError } = await supabaseAdmin
       .from("role_permissions")
       .delete()
@@ -105,6 +119,30 @@ export async function PUT(req) {
 
       if (insertError) throw insertError;
     }
+
+    await writeActivityLog({
+      module_name: "role_permissions",
+      action_type: "update",
+      reference_table: "role_permissions",
+      reference_id: role.id,
+      description: `แก้ไขสิทธิ์ของ Role ${role.role_code} - ${role.role_name}`,
+      old_data: {
+        role_id: role.id,
+        role_code: role.role_code,
+        role_name: role.role_name,
+        permissions: (oldPermissions || []).map((item) => ({
+          permission_id: item.permission_id,
+          permission_code: item.permissions?.permission_code || "",
+          permission_name: item.permissions?.permission_name || "",
+        })),
+      },
+      new_data: {
+        role_id: role.id,
+        role_code: role.role_code,
+        role_name: role.role_name,
+        permission_ids,
+      },
+    });
 
     return NextResponse.json({
       success: true,

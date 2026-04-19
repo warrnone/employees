@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseServer";
 import bcrypt from "bcryptjs";
+import { writeActivityLog } from "@/lib/activityLogger";
 
 /* =========================
    PATCH: update user account
@@ -154,6 +155,32 @@ export async function PATCH(req, { params }) {
 
     if (error) throw error;
 
+    await writeActivityLog({
+      module_name: "user_accounts",
+      action_type: "update",
+      reference_table: "user_accounts",
+      reference_id: data.id,
+      description: `แก้ไขผู้ใช้งานระบบ ${data.username}`,
+      old_data: {
+        id: oldUser.id,
+        auth_user_id: oldUser.auth_user_id,
+        username: oldUser.username,
+      },
+      new_data: {
+        auth_user_id: data.auth_user_id,
+        employee_id: data.employee_id,
+        role_id: data.role_id,
+        username: data.username,
+        is_active: data.is_active,
+        employee_code: data.employees?.employee_code || "",
+        employee_name:
+          `${data.employees?.first_name_th || ""} ${data.employees?.last_name_th || ""}`.trim(),
+        role_code: data.roles?.role_code || "",
+        role_name: data.roles?.role_name || "",
+        password_changed: !!password,
+      },
+    });
+
     return NextResponse.json({
       success: true,
       message: "อัพเดทผู้ใช้งานระบบสำเร็จ",
@@ -200,6 +227,19 @@ export async function DELETE(req, { params }) {
       .single();
 
     if (oldUserError) throw oldUserError;
+
+    await writeActivityLog({
+      module_name: "user_accounts",
+      action_type: "delete",
+      reference_table: "user_accounts",
+      reference_id: oldUser.id,
+      description: `ลบผู้ใช้งานระบบ ${oldUser.username}`,
+      old_data: {
+        id: oldUser.id,
+        auth_user_id: oldUser.auth_user_id,
+        username: oldUser.username,
+      },
+    });
 
     if (oldUser.username?.toLowerCase() === "admin") {
       return NextResponse.json(

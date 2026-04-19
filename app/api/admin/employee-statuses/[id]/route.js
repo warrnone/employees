@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseServer";
+import { writeActivityLog } from "@/lib/activityLogger";
 
 /* =========================
    PATCH: update employee status
@@ -41,6 +42,21 @@ export async function PATCH(req, { params }) {
       );
     }
 
+    const { data: oldStatus, error: oldStatusError } = await supabaseAdmin
+      .from("employee_statuses")
+      .select(`
+        id,
+        status_code,
+        status_name,
+        color,
+        sort_order,
+        status
+      `)
+      .eq("id", id)
+      .single();
+
+    if (oldStatusError) throw oldStatusError;
+
     const { error: updateError } = await supabaseAdmin
       .from("employee_statuses")
       .update({
@@ -70,6 +86,28 @@ export async function PATCH(req, { params }) {
 
     if (error) throw error;
 
+    await writeActivityLog({
+      module_name: "employee_statuses",
+      action_type: "update",
+      reference_table: "employee_statuses",
+      reference_id: data.id,
+      description: `แก้ไขสถานะพนักงาน ${data.status_code} - ${data.status_name}`,
+      old_data: {
+        status_code: oldStatus.status_code,
+        status_name: oldStatus.status_name,
+        color: oldStatus.color,
+        status: oldStatus.status,
+        sort_order: oldStatus.sort_order,
+      },
+      new_data: {
+        status_code: data.status_code,
+        status_name: data.status_name,
+        color: data.color,
+        status: data.status,
+        sort_order: data.sort_order,
+      },
+    });
+
     return NextResponse.json({
       success: true,
       message: "อัพเดทข้อมูลสถานะพนักงานสำเร็จ",
@@ -95,12 +133,42 @@ export async function DELETE(req, { params }) {
   try {
     const { id } = await params;
 
+    const { data: oldStatus, error: oldStatusError } = await supabaseAdmin
+      .from("employee_statuses")
+      .select(`
+        id,
+        status_code,
+        status_name,
+        color,
+        sort_order,
+        status
+      `)
+      .eq("id", id)
+      .single();
+
+    if (oldStatusError) throw oldStatusError;
+
     const { error } = await supabaseAdmin
       .from("employee_statuses")
       .delete()
       .eq("id", id);
 
     if (error) throw error;
+
+    await writeActivityLog({
+      module_name: "employee_statuses",
+      action_type: "delete",
+      reference_table: "employee_statuses",
+      reference_id: oldStatus.id,
+      description: `ลบสถานะพนักงาน ${oldStatus.status_code} - ${oldStatus.status_name}`,
+      old_data: {
+        status_code: oldStatus.status_code,
+        status_name: oldStatus.status_name,
+        color: oldStatus.color,
+        status: oldStatus.status,
+        sort_order: oldStatus.sort_order,
+      },
+    });
 
     return NextResponse.json({
       success: true,

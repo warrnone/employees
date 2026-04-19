@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseServer";
+import { writeActivityLog } from "@/lib/activityLogger";
 
 export async function GET(req) {
   try {
@@ -133,6 +134,26 @@ export async function POST(req) {
 
       throw error;
     }
+
+    await writeActivityLog({
+      module_name: "branches",
+      action_type: "create",
+      reference_table: "branches",
+      reference_id: data.id,
+      description: `เพิ่มสังกัด ${data.branch_code} - ${data.branch_name}`,
+      new_data: {
+        branch_code: data.branch_code,
+        branch_name: data.branch_name,
+        company_id: data.company_id,
+        company_code: data.companies?.company_code || "",
+        company_name:
+          data.companies?.company_name_th ||
+          data.companies?.company_name_en ||
+          "",
+        phone: data.phone,
+        status: data.status,
+      },
+    });
 
     return NextResponse.json({
       success: true,

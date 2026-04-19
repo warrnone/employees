@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseServer";
 import bcrypt from "bcryptjs";
+import { writeActivityLog } from "@/lib/activityLogger";
 
 /* =========================
    GET: list user accounts
@@ -236,6 +237,26 @@ export async function POST(req) {
       await supabaseAdmin.auth.admin.deleteUser(auth_user_id);
       throw error;
     }
+
+    await writeActivityLog({
+      module_name: "user_accounts",
+      action_type: "create",
+      reference_table: "user_accounts",
+      reference_id: data.id,
+      description: `เพิ่มผู้ใช้งานระบบ ${data.username}`,
+      new_data: {
+        auth_user_id: data.auth_user_id,
+        employee_id: data.employee_id,
+        role_id: data.role_id,
+        username: data.username,
+        is_active: data.is_active,
+        employee_code: data.employees?.employee_code || "",
+        employee_name:
+          `${data.employees?.first_name_th || ""} ${data.employees?.last_name_th || ""}`.trim(),
+        role_code: data.roles?.role_code || "",
+        role_name: data.roles?.role_name || "",
+      },
+    });
 
     return NextResponse.json({
       success: true,

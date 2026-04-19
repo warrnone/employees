@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseServer";
+import { writeActivityLog } from "@/lib/activityLogger";
 
 /* =========================
    GET: list units
@@ -158,6 +159,23 @@ export async function POST(req) {
       .single();
 
     if (insertError) throw insertError;
+
+    await writeActivityLog({
+      module_name: "units",
+      action_type: "create",
+      reference_table: "units",
+      reference_id: unit.id,
+      description: `เพิ่มหน่วย ${unit.unit_code} - ${unit.unit_name}`,
+      new_data: {
+        unit_code: unit.unit_code,
+        unit_name: unit.unit_name,
+        division_id: unit.division_id,
+        division_name: unit.divisions?.division_name || "",
+        department_name: unit.divisions?.departments?.department_name || "",
+        status: unit.status,
+        sort_order: unit.sort_order,
+      },
+    });
 
     return NextResponse.json({
       success: true,
