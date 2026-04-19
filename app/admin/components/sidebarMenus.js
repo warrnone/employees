@@ -11,6 +11,7 @@ import {
   IdcardOutlined,
   SafetyOutlined,
   KeyOutlined,
+  AuditOutlined,
   UsergroupAddOutlined,
 } from "@ant-design/icons";
 
@@ -125,6 +126,12 @@ export const sidebarMenus = [
         href: "/admin/role-permissions",
         icon: <LockOutlined />,
         permission: "role_permissions.view",
+      },
+      {
+        label: "log activity",
+        href: "/admin/activity-logs",
+        icon: <AuditOutlined />,
+        permission: "activity_logs.view",
       },
     ],
   },
