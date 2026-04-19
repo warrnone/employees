@@ -41,6 +41,8 @@ export default function PositionsPage() {
   const [editingPosition, setEditingPosition] = useState(null);
   const [form, setForm] = useState(initialForm);
 
+  const [showGradeRef, setShowGradeRef] = useState(false);
+
   // Partition
   const [page, setPage] = useState(1);
   const [pageSize] = useState(20);
@@ -291,6 +293,35 @@ export default function PositionsPage() {
     page * pageSize
   );
 
+  const gradeTiers = [
+    { codes: ["P2", "P3"], badge: "bg-teal-50 text-teal-700" },
+    { codes: ["P4", "P5"], badge: "bg-violet-50 text-violet-700" },
+    { codes: ["P6", "P7"], badge: "bg-blue-50 text-blue-700" },
+    { codes: ["P8", "P9"], badge: "bg-amber-50 text-amber-700" },
+    { codes: ["P10", "P11", "P12"], badge: "bg-orange-50 text-orange-700" },
+  ];
+  const getBadgeClass = (code) => gradeTiers.find((t) => t.codes.includes(code))?.badge ?? "bg-slate-100 text-slate-500";
+  const grades = [
+    ["P2", "Staff / Junior"],
+    ["P3", "Senior Staff"],
+    ["P4", "Specialist / Supervisor"],
+    ["P5", "Assistant Manager"],
+    ["P6", "Manager"],
+    ["P7", "Senior Manager"],
+    ["P8", "Assistant Director"],
+    ["P9", "Director"],
+    ["P10", "Senior Director / AVP"],
+    ["P11", "VP / GM"],
+    ["P12", "MD / President / CEO"],
+  ];
+  const legends = [
+    { label: "Individual contributor", className: "bg-teal-50 border-teal-300" },
+    { label: "Specialist / supervisor", className: "bg-violet-50 border-violet-300" },
+    { label: "Management", className: "bg-blue-50 border-blue-300" },
+    { label: "Director level", className: "bg-amber-50 border-amber-300" },
+    { label: "Executive", className: "bg-orange-50 border-orange-300" },
+  ];
+
   if (loadingUser) return null;
   if (!user) return null;
   if (!canView) return null;
@@ -356,7 +387,7 @@ export default function PositionsPage() {
 
             <tbody>
               {loading ? (
-                [...Array(5)].map((_, i) => (
+                [...Array(pageSize)].map((_, i) => (
                   <tr key={i} className="border-t border-slate-200">
                     <td className="px-6 py-4">
                       <div className="h-3.5 w-24 animate-pulse rounded-md bg-slate-200" />
@@ -496,13 +527,17 @@ export default function PositionsPage() {
       {openModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-2xl rounded-3xl bg-white shadow-2xl">
+
+            {/* Header */}
             <div className="border-b border-slate-200 px-6 py-4">
               <h2 className="text-xl font-bold text-slate-800">
                 {editingPosition ? "แก้ไขตำแหน่ง" : "เพิ่มตำแหน่ง"}
               </h2>
             </div>
 
+            {/* Body */}
             <div className="grid grid-cols-1 gap-5 p-6 md:grid-cols-2">
+
               <div>
                 <label className="mb-2 block text-sm font-medium text-slate-700">
                   รหัสตำแหน่ง
@@ -510,9 +545,7 @@ export default function PositionsPage() {
                 <input
                   type="text"
                   value={form.code}
-                  onChange={(e) =>
-                    setForm((prev) => ({ ...prev, code: e.target.value }))
-                  }
+                  onChange={(e) => setForm((prev) => ({ ...prev, code: e.target.value }))}
                   placeholder="เช่น GRA"
                   className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-slate-500 focus:ring-4 focus:ring-slate-100"
                 />
@@ -525,15 +558,13 @@ export default function PositionsPage() {
                 <input
                   type="text"
                   value={form.name}
-                  onChange={(e) =>
-                    setForm((prev) => ({ ...prev, name: e.target.value }))
-                  }
+                  onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
                   placeholder="เช่น Guest Relation Agent"
                   className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-slate-500 focus:ring-4 focus:ring-slate-100"
                 />
               </div>
-              
-              {/* ระดับตำแหน่งง */}
+
+              {/* ระดับตำแหน่ง */}
               <div className="md:col-span-2">
                 <label className="mb-2 block text-sm font-medium text-slate-700">
                   ระดับตำแหน่ง
@@ -541,61 +572,81 @@ export default function PositionsPage() {
                 <input
                   type="text"
                   value={form.group}
-                  onChange={(e) =>
-                    setForm((prev) => ({ ...prev, group: e.target.value }))
-                  }
+                  onChange={(e) => setForm((prev) => ({ ...prev, group: e.target.value }))}
                   placeholder="เช่น Junior / Senior / Supervisor / Manager"
                   className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-slate-500 focus:ring-4 focus:ring-slate-100"
                 />
                 <select
                   value={form.level}
-                  onChange={(e) =>
-                    setForm((prev) => ({ ...prev, level: e.target.value }))
-                  }
+                  onChange={(e) => setForm((prev) => ({ ...prev, level: e.target.value }))}
                   className="mt-3 w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-slate-500 focus:ring-4 focus:ring-slate-100"
                 >
                   <option value="">เลือกระดับตำแหน่ง</option>
-
                   {positionLevelOptions.map((level) => (
-                    <option key={level} value={level}>
-                      {level}
-                    </option>
+                    <option key={level} value={level}>{level}</option>
                   ))}
                 </select>
 
-                <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-0.5 rounded-xl bg-slate-50 px-3 py-2.5">
-                  {[
-                    ["P2", "Staff / Junior"],
-                    ["P3", "Senior Staff"],
-                    ["P4", "Specialist / Supervisor"],
-                    ["P5", "Assistant Manager"],
-                    ["P6", "Manager"],
-                    ["P7", "Senior Manager"],
-                    ["P8", "Assistant Director"],
-                    ["P9", "Director"],
-                    ["P10", "Senior Director / AVP"],
-                    ["P11", "VP / GM"],
-                    ["P12", "MD / President / CEO"],
-                  ].map(([code, label]) => (
-                    <div key={code} className="flex items-center gap-1.5 py-0.5">
-                      <span className="w-8 shrink-0 text-xs font-semibold text-slate-500">
-                        {code}
+                {/* Grade reference - collapsible */}
+                <button
+                  type="button"
+                  onClick={() => setShowGradeRef((v) => !v)}
+                  className="mt-2 flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-600"
+                >
+                  <span>{showGradeRef ? "▲" : "▼"}</span>
+                  <span>ดูตัวอย่าง Position grade reference</span>
+                </button>
+
+                {showGradeRef && (
+                  <div className="mt-2 rounded-xl bg-slate-50 px-3 py-2.5">
+                    <div className="mb-2 flex items-center gap-2">
+                      <span className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                        Position grade reference
                       </span>
-                      <span className="text-xs text-slate-400">{label}</span>
+                      <span className="rounded bg-violet-50 px-2 py-0.5 text-[11px] font-medium text-violet-700">
+                        ตัวอย่าง
+                      </span>
                     </div>
-                  ))}
-                </div>
+
+                    <div
+                      className="grid gap-1.5"
+                      style={{ gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))" }}
+                    >
+                      {grades.map(([code, label]) => (
+                        <div
+                          key={code}
+                          className="flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-1.5"
+                        >
+                          <span
+                            className={`min-w-[32px] shrink-0 rounded px-1.5 py-0.5 text-center text-[11px] font-semibold ${getBadgeClass(code)}`}
+                          >
+                            {code}
+                          </span>
+                          <span className="text-xs text-slate-500">{label}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="mt-2.5 flex flex-wrap gap-x-3 gap-y-1.5">
+                      {legends.map(({ label, className }) => (
+                        <div key={label} className="flex items-center gap-1.5">
+                          <span className={`h-2.5 w-2.5 shrink-0 rounded-sm border ${className}`} />
+                          <span className="text-[11px] text-slate-400">{label}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
+              {/* สถานะ */}
               <div className="md:col-span-2">
                 <label className="mb-2 block text-sm font-medium text-slate-700">
                   สถานะ
                 </label>
                 <select
                   value={form.status}
-                  onChange={(e) =>
-                    setForm((prev) => ({ ...prev, status: e.target.value }))
-                  }
+                  onChange={(e) => setForm((prev) => ({ ...prev, status: e.target.value }))}
                   className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-slate-500 focus:ring-4 focus:ring-slate-100"
                 >
                   <option value="active">Active</option>
@@ -604,6 +655,7 @@ export default function PositionsPage() {
               </div>
             </div>
 
+            {/* Footer */}
             <div className="flex justify-end gap-3 border-t border-slate-200 px-6 py-4">
               <button
                 type="button"
@@ -620,9 +672,7 @@ export default function PositionsPage() {
                   onClick={handleSave}
                   disabled={saving}
                   className={`rounded-2xl px-5 py-3 text-sm font-semibold text-white ${
-                    saving
-                      ? "cursor-not-allowed bg-slate-400"
-                      : "bg-slate-900 hover:bg-slate-800"
+                    saving ? "cursor-not-allowed bg-slate-400" : "bg-slate-900 hover:bg-slate-800"
                   }`}
                 >
                   {saving ? "Saving..." : editingPosition ? "Update" : "Save"}

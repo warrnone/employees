@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Select } from "antd";
 import { swalConfirm, swalError, swalSuccess } from "../../components/Swal";
 import { useRouter } from "next/navigation";
@@ -33,6 +33,8 @@ export default function UserAccountsPage() {
   const [openModal, setOpenModal] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
 
   // #region Permission
   const router = useRouter();
@@ -82,16 +84,19 @@ export default function UserAccountsPage() {
     }
   };
 
-  const loadUserAccounts = async (keyword = "") => {
+  const loadUserAccounts = async (keyword = "", page = 1) => {
     try {
       setLoading(true);
       setError("");
 
-      const url = keyword
-        ? `/api/admin/user-accounts?search=${encodeURIComponent(keyword)}`
-        : "/api/admin/user-accounts";
+      const params = new URLSearchParams();
+      if (keyword) params.set("search", keyword);
+      params.set("page", String(page));
+      params.set("pageSize", String(ITEMS_PER_PAGE));
 
-      const res = await fetch(url, { cache: "no-store" });
+      const res = await fetch(`/api/admin/user-accounts?${params.toString()}`, {
+        cache: "no-store",
+      });
       const data = await res.json();
 
       if (!res.ok) {
@@ -99,7 +104,9 @@ export default function UserAccountsPage() {
       }
 
       setUserAccounts(data.data || []);
-      setCurrentPage(1);
+      setCurrentPage(data.pagination?.page || 1);
+      setTotal(data.pagination?.total || 0);
+      setTotalPages(data.pagination?.totalPages || 1);
     } catch (err) {
       console.error(err);
       setError(err.message || "เกิดข้อผิดพลาดในการโหลดข้อมูล");
@@ -133,7 +140,7 @@ export default function UserAccountsPage() {
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      loadUserAccounts(search);
+      loadUserAccounts(search, 1);
     }, 300);
 
     return () => clearTimeout(timer);
@@ -258,7 +265,7 @@ export default function UserAccountsPage() {
       }
 
       handleCloseModal();
-      loadUserAccounts(search);
+      await loadUserAccounts(search, currentPage);
     } catch (err) {
       console.error(err);
       swalError(err.message || "เกิดข้อผิดพลาดในการบันทึก");
@@ -299,7 +306,7 @@ export default function UserAccountsPage() {
 
       setUserAccounts((prev) => prev.filter((x) => x.id !== item.id));
       swalSuccess("ลบผู้ใช้งานเรียบร้อยแล้ว");
-      loadUserAccounts(search);
+      await loadUserAccounts(search, currentPage);
     } catch (err) {
       console.error(err);
       swalError(err.message || "เกิดข้อผิดพลาดในการลบข้อมูล");
@@ -308,16 +315,8 @@ export default function UserAccountsPage() {
     }
   };
 
-  const totalPages = Math.max(1, Math.ceil(userAccounts.length / ITEMS_PER_PAGE));
-
-  const paginatedUserAccounts = useMemo(() => {
-    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-    const endIndex = startIndex + ITEMS_PER_PAGE;
-    return userAccounts.slice(startIndex, endIndex);
-  }, [userAccounts, currentPage]);
-
-  const pageStart = userAccounts.length === 0 ? 0 : (currentPage - 1) * ITEMS_PER_PAGE + 1;
-  const pageEnd = Math.min(currentPage * ITEMS_PER_PAGE, userAccounts.length);
+  const pageStart = total === 0 ? 0 : (currentPage - 1) * ITEMS_PER_PAGE + 1;
+  const pageEnd = Math.min(currentPage * ITEMS_PER_PAGE, total);
 
   if (loadingUser) return null;
   if (!user) return null;
@@ -405,8 +404,8 @@ export default function UserAccountsPage() {
                     </td>
                   </tr>
                 ))
-              ) : paginatedUserAccounts.length > 0 ? (
-                paginatedUserAccounts.map((item) => {
+              ) : userAccounts.length > 0 ? (
+                userAccounts.map((item) => {
                   const isProtectedAdmin =
                     item.username?.toLowerCase() === "admin";
 
@@ -506,13 +505,16 @@ export default function UserAccountsPage() {
         {!loading && userAccounts.length > 0 ? (
           <div className="flex flex-col gap-3 border-t border-slate-200 px-6 py-4 md:flex-row md:items-center md:justify-between">
             <p className="text-sm text-slate-500">
-              แสดง {pageStart}-{pageEnd} จากทั้งหมด {userAccounts.length} รายการ
+              แสดง {pageStart}-{pageEnd} จากทั้งหมด {total} รายการ
             </p>
 
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                onClick={() => {
+                  const nextPage = Math.max(currentPage - 1, 1);
+                  loadUserAccounts(search, nextPage);
+                }}
                 disabled={currentPage === 1}
                 className={`rounded-xl border px-4 py-2 text-sm font-medium ${
                   currentPage === 1
@@ -529,7 +531,7 @@ export default function UserAccountsPage() {
                     <button
                       key={page}
                       type="button"
-                      onClick={() => setCurrentPage(page)}
+                      onClick={() => loadUserAccounts(search, page)}
                       className={`h-10 min-w-10 rounded-xl px-3 text-sm font-semibold ${
                         currentPage === page
                           ? "bg-slate-900 text-white"
@@ -544,9 +546,10 @@ export default function UserAccountsPage() {
 
               <button
                 type="button"
-                onClick={() =>
-                  setCurrentPage((prev) => Math.min(prev + 1, totalPages))
-                }
+                onClick={() => {
+                  const nextPage = Math.min(currentPage + 1, totalPages);
+                  loadUserAccounts(search, nextPage);
+                }}
                 disabled={currentPage === totalPages}
                 className={`rounded-xl border px-4 py-2 text-sm font-medium ${
                   currentPage === totalPages

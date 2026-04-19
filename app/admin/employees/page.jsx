@@ -109,7 +109,7 @@ export default function EmployeesPage() {
   };
 
   const loadDivisions = async () => {
-    const res = await fetch("/api/admin/divisions", { cache: "no-store" });
+    const res = await fetch("/api/admin/divisions?all=true", { cache: "no-store" });
     const data = await res.json();
     if (!res.ok) throw new Error(data?.error || "Load divisions failed");
     setDivisions(
@@ -124,7 +124,7 @@ export default function EmployeesPage() {
   };
 
   const loadUnits = async () => {
-    const res = await fetch("/api/admin/units", { cache: "no-store" });
+    const res = await fetch("/api/admin/units?all=true", { cache: "no-store" });
     const data = await res.json();
     if (!res.ok) throw new Error(data?.error || "Load units failed");
     setUnits(
@@ -140,7 +140,7 @@ export default function EmployeesPage() {
   };
 
   const loadPositions = async () => {
-    const res = await fetch("/api/admin/positions", { cache: "no-store" });
+    const res = await fetch("/api/admin/positions?all=true", { cache: "no-store" });
     const data = await res.json();
     if (!res.ok) throw new Error(data?.error || "Load positions failed");
     setPositions(data.data || []);
@@ -296,9 +296,6 @@ export default function EmployeesPage() {
       return;
     }
 
-
-
-
     if (!form.first_name_th.trim() || !form.last_name_th.trim()) {
       swalError("กรุณากรอกชื่อและนามสกุล");
       return;
@@ -377,9 +374,11 @@ export default function EmployeesPage() {
           prev.map((item) => (item.id === data.data.id ? data.data : item))
         );
         swalSuccess("อัพเดทข้อมูลพนักงานเรียบร้อยแล้ว");
+        await loadEmployees(search, page);
       } else {
-        setEmployees((prev) => [data.data, ...prev]);
         swalSuccess("เพิ่มข้อมูลพนักงานเรียบร้อยแล้ว");
+        setPage(1);
+        await loadEmployees(search, 1);
       }
 
       handleCloseModal();
@@ -441,6 +440,7 @@ export default function EmployeesPage() {
             <p className="mt-1 text-sm text-slate-500">
               จัดการข้อมูลพนักงานทั้งหมดในระบบ
             </p>
+            <span className=" text-red-800">เพิ่มการ upload/ถ่ายรูป</span>
           </div>
 
           {canCreate && (
@@ -489,7 +489,7 @@ export default function EmployeesPage() {
 
             <tbody>
               {loading ? (
-                [...Array(5)].map((_, i) => (
+                [...Array(pageSize)].map((_, i) => (
                   <tr key={i} className="border-t border-slate-200">
                     <td className="px-6 py-4"><div className="h-4 w-24 animate-pulse rounded bg-slate-200" /></td>
                     <td className="px-6 py-4"><div className="h-4 w-36 animate-pulse rounded bg-slate-200" /></td>

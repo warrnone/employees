@@ -58,7 +58,7 @@ export default function UnitPositionsPage() {
 
   const loadUnits = async () => {
     try {
-      const res = await fetch("/api/admin/units", {
+      const res = await fetch("/api/admin/units?all=true", {
         method: "GET",
         cache: "no-store",
       });
@@ -78,7 +78,7 @@ export default function UnitPositionsPage() {
 
   const loadPositions = async () => {
     try {
-      const res = await fetch("/api/admin/positions", {
+      const res = await fetch("/api/admin/positions?all=true", {
         method: "GET",
         cache: "no-store",
       });
@@ -401,7 +401,7 @@ export default function UnitPositionsPage() {
 
             <tbody>
               {loading ? (
-                [...Array(5)].map((_, i) => (
+                [...Array(pageSize)].map((_, i) => (
                   <tr key={i} className="border-t border-slate-200">
                     <td className="px-6 py-4"><div className="h-4 w-10 animate-pulse rounded bg-slate-200" /></td>
                     <td className="px-6 py-4"><div className="h-4 w-36 animate-pulse rounded bg-slate-200" /></td>

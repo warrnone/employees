@@ -4,7 +4,15 @@ import { supabaseAdmin } from "@/lib/supabaseServer";
 export async function GET(req) {
   try {
     const { searchParams } = new URL(req.url);
+
     const search = searchParams.get("search")?.trim().toLowerCase() || "";
+    const all = searchParams.get("all") === "true";
+
+    const page = Math.max(Number(searchParams.get("page") || 1), 1);
+    const pageSize = Math.max(Number(searchParams.get("pageSize") || 20), 1);
+
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
 
     const { data, error } = await supabaseAdmin
       .from("divisions")
@@ -46,9 +54,26 @@ export async function GET(req) {
         })
       : mappedData;
 
+    const total = filteredData.length;
+
+    if (all) {
+      return NextResponse.json({
+        success: true,
+        data: filteredData,
+      });
+    }
+
+    const paginatedData = filteredData.slice(from, to + 1);
+
     return NextResponse.json({
       success: true,
-      data: filteredData,
+      data: paginatedData,
+      pagination: {
+        page,
+        pageSize,
+        total,
+        totalPages: Math.ceil(total / pageSize),
+      },
     });
   } catch (error) {
     console.error("GET_DIVISIONS_ERROR:", error);

@@ -357,7 +357,7 @@ export default function DivisionsPage() {
 
             <tbody>
               {loading ? (
-                [...Array(5)].map((_, i) => (
+                [...Array(pageSize)].map((_, i) => (
                   <tr key={i} className="border-t border-slate-200">
                     <td className="px-6 py-4"><div className="h-3.5 w-20 animate-pulse rounded-md bg-slate-200" /></td>
                     <td className="px-6 py-4"><div className="h-3.5 w-40 animate-pulse rounded-md bg-slate-200" /></td>
