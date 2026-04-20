@@ -80,7 +80,7 @@ export const sidebarMenus = [
     title: "EMPLOYEE MASTER",
     items: [
       {
-        label: "*พนักงาน",
+        label: "พนักงาน",
         href: "/admin/employees",
         icon: <IdcardOutlined />,
         permission: "employees.view",
