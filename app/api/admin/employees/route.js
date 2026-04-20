@@ -61,6 +61,7 @@ function mapEmployee(item) {
     gender: item.gender || "",
     phone: item.phone || "",
     email: item.email || "",
+    employee_photo_url: item.employee_photo_url || "",
     nationality: item.nationality || "",
     hire_date: item.hire_date || "",
     employment_type: item.employment_type || "",
@@ -177,6 +178,7 @@ export async function GET(req) {
         gender,
         phone,
         email,
+        employee_photo_url,
         nationality,
         hire_date,
         employment_type,
@@ -320,6 +322,7 @@ export async function POST(req) {
     const gender = body?.gender || null;
     const phone = body?.phone?.trim() || null;
     const email = body?.email?.trim() || null;
+    const employee_photo_url = body?.employee_photo_url?.trim() || null;
     const nationality = body?.nationality || null;
     const hire_date = body?.hire_date || null;
     const employment_type = body?.employment_type || null;
@@ -409,6 +412,7 @@ export async function POST(req) {
       gender,
       phone,
       email,
+      employee_photo_url,
       nationality,
       hire_date,
       employment_type,
@@ -438,6 +442,7 @@ export async function POST(req) {
         gender,
         phone,
         email,
+        employee_photo_url,
         nationality,
         hire_date,
         employment_type,
@@ -474,7 +479,6 @@ export async function POST(req) {
 
     if (error) throw error;
 
-
     await writeActivityLog({
       module_name: "employees",
       action_type: "create",
@@ -491,6 +495,7 @@ export async function POST(req) {
         gender: data.gender,
         phone: data.phone,
         email: data.email,
+        employee_photo_url: data.employee_photo_url,
         nationality: data.nationality,
         hire_date: data.hire_date,
         employment_type: data.employment_type,
@@ -519,6 +524,7 @@ export async function POST(req) {
         gender: data.gender || "",
         phone: data.phone || "",
         email: data.email || "",
+        employee_photo_url: data.employee_photo_url || "",
         nationality: data.nationality || "",
         hire_date: data.hire_date || "",
         employment_type: data.employment_type || "",
