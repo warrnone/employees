@@ -28,6 +28,7 @@ const initialForm = {
   unit_id: "",
   position_id: "",
   employee_status_id: "",
+  employee_photo_url: "",
   status: "active",
 };
 
@@ -58,6 +59,12 @@ export default function EmployeesPage() {
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
 
+  // Photo upload
+  const [photoFile, setPhotoFile] = useState(null);
+  const [photoPreview, setPhotoPreview] = useState("");
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+
+
   // #region Permission
   const router = useRouter();
   const { user, loadingUser } = useAuth();
@@ -66,7 +73,6 @@ export default function EmployeesPage() {
   const canEdit = hasPermission(user, "employees.edit");
   const canDelete = hasPermission(user, "employees.delete");
 
-  
   useEffect(() => {
     if (loadingUser) return;
 
@@ -218,10 +224,11 @@ export default function EmployeesPage() {
   const resetForm = () => {
     setForm(initialForm);
     setEditingEmployee(null);
+    setPhotoFile(null);
+    setPhotoPreview("");
   };
 
   const handleOpenCreate = () => {
-
     if (!canCreate) {
       swalError("คุณไม่มีสิทธิ์เพิ่มข้อมูลพนักงาน");
       return;
@@ -232,12 +239,11 @@ export default function EmployeesPage() {
   };
 
   const handleOpenEdit = (employee) => {
-
     if (!canEdit) {
       swalError("คุณไม่มีสิทธิ์แก้ไขข้อมูลพนักงาน");
       return;
     }
-    
+
     setEditingEmployee(employee);
     setForm({
       first_name_th: employee.first_name_th || "",
@@ -257,8 +263,11 @@ export default function EmployeesPage() {
       unit_id: employee.unit_id || "",
       position_id: employee.position_id || "",
       employee_status_id: employee.employee_status_id || "",
+      employee_photo_url: employee.employee_photo_url || "",
       status: employee.status || "active",
     });
+    setPhotoFile(null);
+    setPhotoPreview(employee.employee_photo_url || "");
     setOpenModal(true);
   };
 
@@ -283,6 +292,52 @@ export default function EmployeesPage() {
     if (!form.division_id) return [];
     return units.filter((unit) => unit.division_id === form.division_id);
   }, [units, form.division_id]);
+
+  const handlePhotoChange = (file) => {
+    if (!file) return;
+
+    const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+    if (!allowedTypes.includes(file.type)) {
+      swalError("รองรับเฉพาะไฟล์ JPG, PNG, WEBP");
+      return;
+    }
+
+    const maxSize = 50 * 1024 * 1024;
+    if (file.size > maxSize) {
+      swalError("ไฟล์รูปต้องมีขนาดไม่เกิน 50 MB");
+      return;
+    }
+
+    setPhotoFile(file);
+    setPhotoPreview(URL.createObjectURL(file));
+  };
+
+  const uploadEmployeePhoto = async (file, employeeId = "") => {
+    if (!file) return form.employee_photo_url || "";
+
+    try {
+      setUploadingPhoto(true);
+
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("employeeId", employeeId || "");
+
+      const res = await fetch("/api/admin/employees/upload-photo", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data?.error || "Upload photo failed");
+      }
+
+      return data?.url || "";
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
 
   const handleSave = async () => {
     const isEdit = !!editingEmployee;
@@ -349,7 +404,20 @@ export default function EmployeesPage() {
     try {
       setSaving(true);
 
-      const isEdit = !!editingEmployee;
+      let employeePhotoUrl = form.employee_photo_url || "";
+
+      if (photoFile) {
+        employeePhotoUrl = await uploadEmployeePhoto(
+          photoFile,
+          editingEmployee?.id || ""
+        );
+      }
+
+      const payload = {
+        ...form,
+        employee_photo_url: employeePhotoUrl,
+      };
+
       const url = isEdit
         ? `/api/admin/employees/${editingEmployee.id}`
         : "/api/admin/employees";
@@ -360,7 +428,7 @@ export default function EmployeesPage() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(form),
+        body: JSON.stringify(payload),
       });
 
       const data = await res.json();
@@ -470,7 +538,6 @@ export default function EmployeesPage() {
         </div>
       ) : null}
 
-      {/* ตาราง */}
       <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
@@ -538,39 +605,34 @@ export default function EmployeesPage() {
                     </td>
                     <td className="px-6 py-4">
                       {(canEdit || canDelete) ? (
-                        <>
-                          <div className="flex justify-end gap-2">
+                        <div className="flex justify-end gap-2">
+                          {canEdit && (
+                            <button
+                              type="button"
+                              onClick={() => handleOpenEdit(employee)}
+                              className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100"
+                            >
+                              Edit
+                            </button>
+                          )}
 
-                            {canEdit && (
-                              <button
-                                type="button"
-                                onClick={() => handleOpenEdit(employee)}
-                                className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-medium text-slate-600 hover:bg-slate-100"
-                              >
-                                Edit
-                              </button>
-                            )}
-
-                             {canDelete && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleDelete(employee)}
-                                  disabled={deletingId === employee.id}
-                                  className={`rounded-xl border px-3 py-2 text-xs font-medium ${
-                                    deletingId === employee.id
-                                      ? "cursor-not-allowed border-slate-200 text-slate-400"
-                                      : "border-red-200 text-red-600 hover:bg-red-50"
-                                  }`}
-                                >
-                                  {deletingId === employee.id ? "Deleting..." : "Delete"}
-                                </button>
-                              )}
-                          </div>
-                        </>
-                      ):(
-                        <>
-                          <div className="text-right text-slate-400">-</div>
-                        </>
+                          {canDelete && (
+                            <button
+                              type="button"
+                              onClick={() => handleDelete(employee)}
+                              disabled={deletingId === employee.id}
+                              className={`rounded-xl border px-3 py-2 text-xs font-medium ${
+                                deletingId === employee.id
+                                  ? "cursor-not-allowed border-slate-200 text-slate-400"
+                                  : "border-red-200 text-red-600 hover:bg-red-50"
+                              }`}
+                            >
+                              {deletingId === employee.id ? "Deleting..." : "Delete"}
+                            </button>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="text-right text-slate-400">-</div>
                       )}
                     </td>
                   </tr>
@@ -614,7 +676,6 @@ export default function EmployeesPage() {
               </button>
             </div>
           </div>
-          
         </div>
       </div>
 
@@ -628,6 +689,75 @@ export default function EmployeesPage() {
             </div>
 
             <div className="grid grid-cols-1 gap-5 p-6 md:grid-cols-2">
+              <div className="md:col-span-2">
+                <label className="mb-2 block text-sm font-medium text-slate-700">
+                  รูปพนักงาน
+                </label>
+
+                <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="flex flex-col gap-4 md:flex-row md:items-center">
+                    <div className="flex h-32 w-32 items-center justify-center overflow-hidden rounded-2xl border border-slate-300 bg-white">
+                      {photoPreview ? (
+                        <img
+                          src={photoPreview}
+                          alt="Employee Preview"
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <span className="text-xs text-slate-400">ไม่มีรูป</span>
+                      )}
+                    </div>
+
+                    <div className="flex flex-1 flex-col gap-3">
+                      <div className="flex flex-wrap gap-2">
+                        <label className="cursor-pointer rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-100">
+                          Upload รูป
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) => handlePhotoChange(e.target.files?.[0])}
+                          />
+                        </label>
+
+                        <label className="cursor-pointer rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-800">
+                          ถ่ายรูป
+                          <input
+                            type="file"
+                            accept="image/*"
+                            capture="environment"
+                            className="hidden"
+                            onChange={(e) => handlePhotoChange(e.target.files?.[0])}
+                          />
+                        </label>
+
+                        {photoPreview && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setPhotoFile(null);
+                              setPhotoPreview("");
+                              setForm((prev) => ({ ...prev, employee_photo_url: "" }));
+                            }}
+                            className="rounded-2xl border border-red-200 px-4 py-3 text-sm font-medium text-red-600 hover:bg-red-50"
+                          >
+                            ลบรูป
+                          </button>
+                        )}
+                      </div>
+
+                      <p className="text-xs text-slate-500">
+                        รองรับ JPG, PNG, WEBP ขนาดไม่เกิน 50 MB
+                      </p>
+
+                      {uploadingPhoto && (
+                        <p className="text-xs text-slate-500">กำลังอัปโหลดรูป...</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               <div>
                 <label className="mb-2 block text-sm font-medium text-slate-700">ชื่อ (TH)</label>
                 <input
@@ -635,7 +765,7 @@ export default function EmployeesPage() {
                   value={form.first_name_th}
                   onChange={(e) => {
                     const val = e.target.value.replace(/[^ก-๙\s]/g, "");
-                    setForm((prev) => ({ ...prev, first_name_th: val })); 
+                    setForm((prev) => ({ ...prev, first_name_th: val }));
                   }}
                   className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-slate-500 focus:ring-4 focus:ring-slate-100"
                 />
@@ -703,7 +833,6 @@ export default function EmployeesPage() {
                 </select>
               </div>
 
-              {/* โทรศัพท์ */}
               <div>
                 <label className="mb-2 block text-sm font-medium text-slate-700">โทรศัพท์</label>
                 <PhoneInput
@@ -833,7 +962,6 @@ export default function EmployeesPage() {
                 />
               </div>
 
-              {/* ฝ่าย */}
               <div>
                 <label className="mb-2 block text-sm font-medium text-slate-700">ฝ่าย</label>
                 <Select
@@ -856,8 +984,7 @@ export default function EmployeesPage() {
                   size="large"
                 />
               </div>
-              
-              {/* หน่วยงาน */}
+
               <div>
                 <label className="mb-2 block text-sm font-medium text-slate-700">หน่วยงาน</label>
                 <Select
@@ -879,8 +1006,7 @@ export default function EmployeesPage() {
                   size="large"
                 />
               </div>
-              
-              {/* ตำแหน่ง */}
+
               <div>
                 <label className="mb-2 block text-sm font-medium text-slate-700">ตำแหน่ง</label>
                 <Select
@@ -902,8 +1028,7 @@ export default function EmployeesPage() {
                   size="large"
                 />
               </div>
-              
-              {/* สถานะพนักงาน */}
+
               <div className="md:col-span-2">
                 <label className="mb-2 block text-sm font-medium text-slate-700">
                   สถานะพนักงาน
@@ -929,14 +1054,13 @@ export default function EmployeesPage() {
                     ))}
                 </select>
               </div>
-
             </div>
 
             <div className="flex justify-end gap-3 border-t border-slate-200 px-6 py-4">
               <button
                 type="button"
                 onClick={handleCloseModal}
-                disabled={saving}
+                disabled={saving || uploadingPhoto}
                 className="rounded-2xl border border-slate-300 px-5 py-3 text-sm font-medium text-slate-600 hover:bg-slate-100"
               >
                 Cancel
@@ -946,16 +1070,20 @@ export default function EmployeesPage() {
                 <button
                   type="button"
                   onClick={handleSave}
-                  disabled={saving}
+                  disabled={saving || uploadingPhoto}
                   className={`rounded-2xl px-5 py-3 text-sm font-semibold text-white ${
-                    saving
+                    saving || uploadingPhoto
                       ? "cursor-not-allowed bg-slate-400"
                       : "bg-slate-900 hover:bg-slate-800"
                   }`}
                 >
-                  {saving ? "Saving..." : editingEmployee ? "Update" : "Save"}
+                  {saving || uploadingPhoto
+                    ? "Saving..."
+                    : editingEmployee
+                    ? "Update"
+                    : "Save"}
                 </button>
-              )}      
+              )}
             </div>
           </div>
         </div>
