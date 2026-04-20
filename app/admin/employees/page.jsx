@@ -440,7 +440,6 @@ export default function EmployeesPage() {
             <p className="mt-1 text-sm text-slate-500">
               จัดการข้อมูลพนักงานทั้งหมดในระบบ
             </p>
-            <span className=" text-red-800">เพิ่มการ upload/ถ่ายรูป</span>
           </div>
 
           {canCreate && (
