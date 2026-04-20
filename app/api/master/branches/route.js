@@ -5,6 +5,9 @@
   - ระบบอื่นสามารถเรียกไปทำ dropdown เลือกสังกัดได้
   - ใช้เฉพาะ GET
   - ต้องส่ง x-api-key มาใน header ด้วย
+
+
+  URL: GET http://localhost:3000/api/master/branches
 */
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseServer";
