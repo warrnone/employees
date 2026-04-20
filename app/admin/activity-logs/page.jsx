@@ -20,6 +20,8 @@ export default function ActivityLogsPage() {
   const [search, setSearch] = useState("");
   const [moduleFilter, setModuleFilter] = useState("");
   const [actionFilter, setActionFilter] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
 
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
@@ -42,7 +44,9 @@ export default function ActivityLogsPage() {
     keyword = "",
     moduleName = "",
     actionType = "",
-    currentPage = 1
+    currentPage = 1,
+    from = "",
+    to = ""
   ) => {
     try {
       setLoading(true);
@@ -52,6 +56,8 @@ export default function ActivityLogsPage() {
       if (keyword) params.set("search", keyword);
       if (moduleName) params.set("module_name", moduleName);
       if (actionType) params.set("action_type", actionType);
+      if (from) params.set("date_from", from);
+      if (to) params.set("date_to", to);
       params.set("page", String(currentPage));
       params.set("pageSize", String(PAGE_SIZE));
 
@@ -78,16 +84,21 @@ export default function ActivityLogsPage() {
   };
 
   useEffect(() => {
-    loadLogs("", "", "", 1);
+    loadLogs("", "", "", 1, "", "");
   }, []);
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      loadLogs(search, moduleFilter, actionFilter, 1);
+      loadLogs(search, moduleFilter, actionFilter, 1, dateFrom, dateTo);
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [search, moduleFilter, actionFilter]);
+  }, [search, moduleFilter, actionFilter, dateFrom, dateTo]);
+
+  const handleClearDate = () => {
+    setDateFrom("");
+    setDateTo("");
+  };
 
   const moduleOptions = useMemo(
     () => [
@@ -106,10 +117,7 @@ export default function ActivityLogsPage() {
     []
   );
 
-  const actionOptions = useMemo(
-    () => ["create", "update", "delete"],
-    []
-  );
+  const actionOptions = useMemo(() => ["create", "update", "delete"], []);
 
   const formatJson = (value) => {
     if (!value) return "-";
@@ -127,6 +135,7 @@ export default function ActivityLogsPage() {
   return (
     <div className="min-h-screen bg-slate-50 p-4 md:p-6">
       <div className="mx-auto max-w-7xl space-y-6">
+        {/* Header */}
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div>
@@ -148,8 +157,10 @@ export default function ActivityLogsPage() {
           </div>
         </div>
 
+        {/* Filters */}
         <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            {/* Search */}
             <input
               type="text"
               placeholder="ค้นหา description / module / action"
@@ -158,6 +169,7 @@ export default function ActivityLogsPage() {
               className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-slate-500 focus:ring-4 focus:ring-slate-100"
             />
 
+            {/* Module */}
             <select
               value={moduleFilter}
               onChange={(e) => setModuleFilter(e.target.value)}
@@ -171,6 +183,7 @@ export default function ActivityLogsPage() {
               ))}
             </select>
 
+            {/* Action */}
             <select
               value={actionFilter}
               onChange={(e) => setActionFilter(e.target.value)}
@@ -184,14 +197,70 @@ export default function ActivityLogsPage() {
               ))}
             </select>
           </div>
+
+          {/* Date Range Row */}
+          <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="flex flex-1 items-center gap-2">
+              {/* Date From */}
+              <div className="relative flex-1">
+                <label className="absolute -top-2 left-3 bg-white px-1 text-xs text-slate-400">
+                  ตั้งแต่วันที่
+                </label>
+                <input
+                  type="date"
+                  value={dateFrom}
+                  onChange={(e) => setDateFrom(e.target.value)}
+                  max={dateTo || undefined}
+                  className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-slate-500 focus:ring-4 focus:ring-slate-100"
+                />
+              </div>
+
+              <span className="text-slate-400">—</span>
+
+              {/* Date To */}
+              <div className="relative flex-1">
+                <label className="absolute -top-2 left-3 bg-white px-1 text-xs text-slate-400">
+                  ถึงวันที่
+                </label>
+                <input
+                  type="date"
+                  value={dateTo}
+                  onChange={(e) => setDateTo(e.target.value)}
+                  min={dateFrom || undefined}
+                  className="w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-slate-500 focus:ring-4 focus:ring-slate-100"
+                />
+              </div>
+            </div>
+
+            {/* Clear Date Button — แสดงเมื่อเลือกวันแล้ว */}
+            {(dateFrom || dateTo) && (
+              <button
+                type="button"
+                onClick={handleClearDate}
+                className="rounded-2xl border border-slate-300 px-4 py-3 text-sm text-slate-500 hover:bg-slate-50"
+              >
+                ล้างวันที่
+              </button>
+            )}
+
+            {/* Summary badge */}
+            {dateFrom && dateTo && (
+              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-600">
+                {new Date(dateFrom).toLocaleDateString("th-TH")} –{" "}
+                {new Date(dateTo).toLocaleDateString("th-TH")}
+              </span>
+            )}
+          </div>
         </div>
 
+        {/* Error */}
         {error ? (
           <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
             {error}
           </div>
         ) : null}
 
+        {/* Table */}
         <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm">
@@ -304,17 +373,16 @@ export default function ActivityLogsPage() {
             </table>
           </div>
 
+          {/* Pagination */}
           <div className="flex items-center justify-between border-t border-slate-200 px-6 py-4">
-            <p className="text-sm text-slate-500">
-              ทั้งหมด {total} รายการ
-            </p>
+            <p className="text-sm text-slate-500">ทั้งหมด {total} รายการ</p>
 
             <div className="flex items-center gap-2">
               <button
                 type="button"
                 disabled={page <= 1 || loading}
                 onClick={() =>
-                  loadLogs(search, moduleFilter, actionFilter, page - 1)
+                  loadLogs(search, moduleFilter, actionFilter, page - 1, dateFrom, dateTo)
                 }
                 className="rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-600 disabled:cursor-not-allowed disabled:opacity-50"
               >
@@ -329,7 +397,7 @@ export default function ActivityLogsPage() {
                 type="button"
                 disabled={page >= totalPages || loading}
                 onClick={() =>
-                  loadLogs(search, moduleFilter, actionFilter, page + 1)
+                  loadLogs(search, moduleFilter, actionFilter, page + 1, dateFrom, dateTo)
                 }
                 className="rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-600 disabled:cursor-not-allowed disabled:opacity-50"
               >

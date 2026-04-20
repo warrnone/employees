@@ -8,6 +8,8 @@ export async function GET(req) {
     const search = searchParams.get("search")?.trim().toLowerCase() || "";
     const module_name = searchParams.get("module_name")?.trim() || "";
     const action_type = searchParams.get("action_type")?.trim() || "";
+    const date_from = searchParams.get("date_from")?.trim() || "";
+    const date_to = searchParams.get("date_to")?.trim() || "";
 
     const page = Math.max(Number(searchParams.get("page") || 1), 1);
     const pageSize = Math.max(Number(searchParams.get("pageSize") || 20), 1);
@@ -15,7 +17,7 @@ export async function GET(req) {
     const from = (page - 1) * pageSize;
     const to = from + pageSize - 1;
 
-    const { data, error } = await supabaseAdmin
+    let query = supabaseAdmin
       .from("activity_logs")
       .select(`
         id,
@@ -31,6 +33,12 @@ export async function GET(req) {
       `)
       .order("created_at", { ascending: false });
 
+    // Filter date range ฝั่ง DB เลย ดีกว่า filter ใน JS
+    if (date_from) query = query.gte("created_at", `${date_from}T00:00:00`);
+    if (date_to) query = query.lte("created_at", `${date_to}T23:59:59`);
+
+    const { data, error } = await query;
+
     if (error) throw error;
 
     let filteredData = (data || []).filter((item) => {
@@ -42,11 +50,8 @@ export async function GET(req) {
         item.description?.toLowerCase().includes(search) ||
         String(item.reference_id || "").toLowerCase().includes(search);
 
-      const matchModule =
-        !module_name || item.module_name === module_name;
-
-      const matchAction =
-        !action_type || item.action_type === action_type;
+      const matchModule = !module_name || item.module_name === module_name;
+      const matchAction = !action_type || item.action_type === action_type;
 
       return matchSearch && matchModule && matchAction;
     });
