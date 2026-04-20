@@ -8,5 +8,7 @@
     - เหมาะกับระบบ Login, Permission, Access Control
     - ตอนนี้ยังไม่ได้ใส่ validateApiKey เพราะ export มาจาก admin route ตรง ๆ
     - ถ้าจะเปิดให้ระบบอื่นเรียกจริง ควรแยกไฟล์ใหม่แล้วใส่ validateApiKey
+    
+GET : http://localhost:3000/api/access/user-accounts?search=admin
 */
 export { GET, POST } from "@/app/api/admin/user-accounts/route";
