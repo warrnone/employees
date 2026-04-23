@@ -142,4 +142,27 @@ export const sidebarMenus = [
       },
     ],
   },
+  {
+    title: "API MANAGEMENT",
+    items: [
+      {
+        label: "API Clients",
+        href: "/admin/api-clients",
+        icon: <UsergroupAddOutlined />,
+        permission: "api_clients.view",
+      },
+      {
+        label: "API Tokens",
+        href: "/admin/api-tokens",
+        icon: <KeyOutlined />,
+        permission: "api_tokens.view",
+      },
+      {
+        label: "API Logs",
+        href: "/admin/api-logs",
+        icon: <AuditOutlined />,
+        permission: "api_logs.view",
+      },
+    ],
+  },
 ];
