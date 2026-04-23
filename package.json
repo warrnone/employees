@@ -21,7 +21,8 @@
     "react-international-phone": "^4.8.0",
     "react-phone-input-2": "^2.15.1",
     "react-phone-number-input": "^3.4.16",
-    "sweetalert2": "^11.26.24"
+    "sweetalert2": "^11.26.24",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

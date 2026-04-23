@@ -24,6 +24,7 @@ import {
   ClockCircleOutlined,
   CheckCircleOutlined,
   UsergroupAddOutlined,
+  DownloadOutlined,
   SolutionOutlined,
   WarningOutlined,
   RiseOutlined,
@@ -356,6 +357,23 @@ export default function AdminPage() {
                   >
                     จัดการผู้ใช้งาน
                   </Button>
+
+                  <Button
+                    size="large"
+                    className="!h-[50px] !rounded-2xl !border-slate-200 !bg-white !px-6 !text-slate-700 shadow-sm hover:!border-sky-200 hover:!text-sky-600"
+                    onClick={() => router.push("/admin/manpower")}
+                  >
+                    ไปหน้ากำลังคน
+                  </Button>
+
+                  <a
+                    href="/api/admin/dashboard/export"
+                    className="inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white hover:bg-slate-800"
+                  >
+                    <DownloadOutlined />
+                    Export Excel
+                  </a>
+
                 </div>
               </div>
 

@@ -11,6 +11,7 @@ import {
   IdcardOutlined,
   SafetyOutlined,
   KeyOutlined,
+  WarningOutlined,
   AuditOutlined,
   UsergroupAddOutlined,
 } from "@ant-design/icons";
@@ -23,6 +24,12 @@ export const sidebarMenus = [
         label: "Dashboard",
         href: "/admin",
         icon: <DashboardOutlined />,
+        permission: "dashboard.view",
+      },
+      {
+        label: "กำลังคน",
+        href: "/admin/manpower",
+        icon: <WarningOutlined />,
         permission: "dashboard.view",
       },
     ],
