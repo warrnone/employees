@@ -4,7 +4,7 @@ import { logActivity } from "@/lib/logActivity";
 
 export async function PATCH(req, { params }) {
   try {
-    const { id } = params;
+    const { id } = await params;
     const body = await req.json();
 
     const { data: oldData, error: findError } = await supabaseAdmin

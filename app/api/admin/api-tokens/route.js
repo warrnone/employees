@@ -3,6 +3,15 @@ import { supabaseAdmin } from "@/lib/supabaseServer";
 import { logActivity } from "@/lib/logActivity";
 import { generateApiToken } from "@/lib/tokenUtils";
 
+function cleanTokenName(value) {
+  return String(value || "")
+    .normalize("NFKC")
+    .replace(/[็]/g, "")
+    .replace(/[\u0000-\u001F\u007F-\u009F\u200B-\u200D\uFEFF]/g, "")
+    .replace(/^["'“”‘’`´]+|["'“”‘’`´]+$/g, "")
+    .trim();
+}
+
 export async function GET() {
   try {
     const { data, error } = await supabaseAdmin
@@ -46,10 +55,10 @@ export async function GET() {
 
 export async function POST(req) {
   try {
-    const body = await req.json();
 
+    const body = await req.json();
     const client_id = body.client_id || null;
-    const token_name = body.token_name?.trim() || "";
+    const token_name = cleanTokenName(body.token_name);
     const expires_at = body.expires_at || null;
 
     if (!client_id || !token_name) {
