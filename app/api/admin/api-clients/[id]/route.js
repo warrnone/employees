@@ -128,3 +128,30 @@ export async function PATCH(req, { params }) {
     );
   }
 }
+
+
+export async function DELETE(req, { params }) {
+  try {
+    const { id } = await params;
+
+    const { error } = await supabaseAdmin
+      .from("api_clients")
+      .delete()
+      .eq("id", id);
+
+    if (error) throw error;
+
+    return NextResponse.json({
+      success: true,
+      message: "ลบสำเร็จ",
+    });
+  } catch (error) {
+    return NextResponse.json(
+      {
+        success: false,
+        message: "ไม่สามารถลบได้",
+      },
+      { status: 500 }
+    );
+  }
+}

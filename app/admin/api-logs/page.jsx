@@ -1,20 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import {
-  Table,
-  Card,
-  Input,
-  Select,
-  DatePicker,
-  Button,
-  Space,
-  Tag,
-  Modal,
-  Typography,
-  message,
-} from "antd";
+import {Table,Card,Input,Select,DatePicker,Button,Space,Tag,Modal,Typography,message,} from "antd";
 import dayjs from "dayjs";
+import { useRouter } from "next/navigation";
+import useAuth from "@/hooks/useAuth";
+import { hasPermission } from "@/lib/permissions";
+import LoadingOrb from "../../components/LoadingOrb";
 
 const { RangePicker } = DatePicker;
 const { Paragraph, Text } = Typography;
@@ -73,6 +65,25 @@ export default function ApiLogsPage() {
 
   const [selectedLog, setSelectedLog] = useState(null);
   const [detailOpen, setDetailOpen] = useState(false);
+
+
+  // #region Auth & Permissions
+  const router = useRouter();
+  const { user, loadingUser } = useAuth();
+
+  const canView = hasPermission(user, "api_logs.view");
+
+  useEffect(() => {
+    if (loadingUser) return;
+    if (!user) {
+      router.replace("/login");
+      return;
+    }
+    if (!canView) {
+      router.replace("/admin");
+    }
+  }, [loadingUser, user, canView, router]);
+  // #endregion
 
   const fetchClients = async () => {
     try {
@@ -250,6 +261,11 @@ export default function ApiLogsPage() {
       ),
     },
   ];
+
+
+  if (loadingUser) return <LoadingOrb />;
+  if (!user) return null;
+  if (!canView) return null;
 
   return (
     <div className="space-y-6">
