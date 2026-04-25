@@ -1,7 +1,20 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import {Table,Button,Modal,Form,Input,Select,Space,Tag,message,Typography,Popconfirm,DatePicker,} from "antd";
+import {
+  Table,
+  Button,
+  Modal,
+  Form,
+  Input,
+  Select,
+  Space,
+  Tag,
+  message,
+  Typography,
+  Popconfirm,
+  DatePicker,
+} from "antd";
 import dayjs from "dayjs";
 import { useRouter } from "next/navigation";
 import useAuth from "@/hooks/useAuth";
@@ -21,6 +34,7 @@ export default function ApiTokensPage() {
   const [openCreateModal, setOpenCreateModal] = useState(false);
   const [createdTokenModal, setCreatedTokenModal] = useState(false);
   const [plainToken, setPlainToken] = useState("");
+  const [pendingPlainToken, setPendingPlainToken] = useState("");
   const [form] = Form.useForm();
 
   // #region Auth & Permissions
@@ -29,24 +43,26 @@ export default function ApiTokensPage() {
 
   const canView = hasPermission(user, "api_tokens.view");
   const canCreate = hasPermission(user, "api_tokens.create");
-  const canrevoke = hasPermission(user, "api_tokens.revoke");
-
-  useEffect(() => {
-    if (loadingUser) return;
-    if (!user) {
-      router.replace("/login");
-      return;
-    }
-    if (!canView) {
-      router.replace("/admin");
-    }
-  }, [loadingUser, user, canView, router]);
-  // #endregion
-
+  const canRevoke = hasPermission(user, "api_tokens.revoke");
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    if (loadingUser) return;
+
+    if (!user) {
+      router.replace("/login");
+      return;
+    }
+
+    if (!canView) {
+      router.replace("/admin");
+    }
+  }, [loadingUser, user, canView, router]);
+
+  // #endregion
 
   const fetchClients = async () => {
     try {
@@ -87,9 +103,14 @@ export default function ApiTokensPage() {
   };
 
   useEffect(() => {
+    if (loadingUser) return;
+    if (!user) return;
+    if (!canView) return;
+
     fetchClients();
     fetchTokens();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loadingUser, canView]);
 
   const filteredTokens = useMemo(() => {
     const keyword = search.trim().toLowerCase();
@@ -112,6 +133,11 @@ export default function ApiTokensPage() {
   }, [tokens, search]);
 
   const handleOpenCreate = () => {
+    if (!canCreate) {
+      message.error("คุณไม่มีสิทธิ์สร้าง API Token");
+      return;
+    }
+
     form.resetFields();
     setOpenCreateModal(true);
   };
@@ -121,6 +147,14 @@ export default function ApiTokensPage() {
     form.resetFields();
   };
 
+  const handleAfterCreateModalOpenChange = (open) => {
+    if (!open && pendingPlainToken) {
+      setPlainToken(pendingPlainToken);
+      setPendingPlainToken("");
+      setCreatedTokenModal(true);
+    }
+  };
+
   const handleCloseCreatedTokenModal = () => {
     setCreatedTokenModal(false);
     setPlainToken("");
@@ -128,6 +162,11 @@ export default function ApiTokensPage() {
 
   const handleCreateToken = async () => {
     try {
+      if (!canCreate) {
+        message.error("คุณไม่มีสิทธิ์สร้าง API Token");
+        return;
+      }
+
       const values = await form.validateFields();
 
       const payload = {
@@ -152,9 +191,9 @@ export default function ApiTokensPage() {
         throw new Error(json.message || "สร้าง Token ไม่สำเร็จ");
       }
 
-      handleCloseCreateModal();
-      setPlainToken(json.data?.plain_token || "");
-      setCreatedTokenModal(true);
+      setPendingPlainToken(json.data?.plain_token || "");
+      setOpenCreateModal(false);
+      form.resetFields();
 
       message.success("สร้าง Token สำเร็จ");
       fetchTokens();
@@ -173,6 +212,11 @@ export default function ApiTokensPage() {
   };
 
   const handleRevokeToken = async (record) => {
+    if (!canRevoke) {
+      message.error("คุณไม่มีสิทธิ์ Revoke API Token");
+      return;
+    }
+
     try {
       const res = await fetch(`/api/admin/api-tokens/${record.id}`, {
         method: "PATCH",
@@ -277,9 +321,9 @@ export default function ApiTokensPage() {
               okText="Revoke"
               cancelText="ยกเลิก"
               onConfirm={() => handleRevokeToken(record)}
-              disabled={disabled || !canrevoke}
+              disabled={disabled || !canRevoke}
             >
-              <Button danger size="small" disabled={disabled || !canrevoke}>
+              <Button danger size="small" disabled={disabled || !canRevoke}>
                 Revoke
               </Button>
             </Popconfirm>
@@ -311,8 +355,9 @@ export default function ApiTokensPage() {
             onChange={(e) => setSearch(e.target.value)}
             className="w-full sm:w-[280px]"
           />
+
           {canCreate && (
-            <Button type="primary" onClick={handleOpenCreate} >
+            <Button type="primary" onClick={handleOpenCreate}>
               + Generate Token
             </Button>
           )}
@@ -331,17 +376,24 @@ export default function ApiTokensPage() {
         scroll={{ x: 900 }}
       />
 
-      {mounted && canCreate &&(
+      {mounted && canCreate && (
         <>
           <Modal
             title="Generate API Token"
             open={openCreateModal}
             onCancel={handleCloseCreateModal}
             onOk={handleCreateToken}
+            afterOpenChange={handleAfterCreateModalOpenChange}
             okText="Generate"
             cancelText="ยกเลิก"
             destroyOnHidden
             forceRender
+            mask={{ closable: false }}
+            styles={{
+              mask: {
+                backgroundColor: "rgba(15, 23, 42, 0.35)",
+              },
+            }}
           >
             <Form form={form} layout="vertical">
               <Form.Item
@@ -379,12 +431,18 @@ export default function ApiTokensPage() {
               </Form.Item>
             </Form>
           </Modal>
-          
+
           <Modal
             title="Token ถูกสร้างเรียบร้อยแล้ว"
             open={createdTokenModal}
             onCancel={handleCloseCreatedTokenModal}
             destroyOnHidden
+            mask={{ closable: false }}
+            styles={{
+              mask: {
+                backgroundColor: "rgba(15, 23, 42, 0.35)",
+              },
+            }}
             footer={[
               <Button key="close" onClick={handleCloseCreatedTokenModal}>
                 ปิด
@@ -403,7 +461,9 @@ export default function ApiTokensPage() {
                 copyable={{ text: plainToken }}
                 className="!mb-0 rounded-2xl bg-slate-900 p-4 !text-slate-100"
               >
-                <span className="break-all font-mono text-sm">{plainToken}</span>
+                <span className="break-all font-mono text-sm">
+                  {plainToken}
+                </span>
               </Paragraph>
             </div>
           </Modal>

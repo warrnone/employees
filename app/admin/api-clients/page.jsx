@@ -1,8 +1,24 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import {Table,Button,Modal,Form,Input,Switch,Space,Tag,message,Popconfirm,} from "antd";
-import {EditOutlined,PoweroffOutlined,PlusOutlined,DeleteOutlined,} from "@ant-design/icons";
+import {
+  Table,
+  Button,
+  Modal,
+  Form,
+  Input,
+  Switch,
+  Space,
+  Tag,
+  message,
+  Popconfirm,
+} from "antd";
+import {
+  EditOutlined,
+  PoweroffOutlined,
+  PlusOutlined,
+  DeleteOutlined,
+} from "@ant-design/icons";
 import { useRouter } from "next/navigation";
 import useAuth from "@/hooks/useAuth";
 import { hasPermission } from "@/lib/permissions";
@@ -71,10 +87,31 @@ export default function ApiClientsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadingUser, canView]);
 
+  useEffect(() => {
+    if (!openModal) return;
+
+    if (editing) {
+      form.setFieldsValue({
+        client_code: editing.client_code,
+        client_name: editing.client_name,
+        description: editing.description,
+        contact_name: editing.contact_name,
+        contact_email: editing.contact_email,
+        is_active: editing.is_active,
+      });
+    } else {
+      form.resetFields();
+      form.setFieldsValue({ is_active: true });
+    }
+  }, [openModal, editing, form]);
+
   const handleOpenCreate = () => {
+    if (!canCreate) {
+      message.error("คุณไม่มีสิทธิ์สร้าง API Client");
+      return;
+    }
+
     setEditing(null);
-    form.resetFields();
-    form.setFieldsValue({ is_active: true });
     setOpenModal(true);
   };
 
@@ -85,15 +122,12 @@ export default function ApiClientsPage() {
   };
 
   const handleEdit = (record) => {
+    if (!canEdit) {
+      message.error("คุณไม่มีสิทธิ์แก้ไข API Client");
+      return;
+    }
+
     setEditing(record);
-    form.setFieldsValue({
-      client_code: record.client_code,
-      client_name: record.client_name,
-      description: record.description,
-      contact_name: record.contact_name,
-      contact_email: record.contact_email,
-      is_active: record.is_active,
-    });
     setOpenModal(true);
   };
 
@@ -227,9 +261,7 @@ export default function ApiClientsPage() {
       render: (_, r) => (
         <div>
           <div>{r.contact_name || "-"}</div>
-          <div className="text-xs text-slate-500">
-            {r.contact_email || ""}
-          </div>
+          <div className="text-xs text-slate-500">{r.contact_email || ""}</div>
         </div>
       ),
     },
@@ -336,7 +368,7 @@ export default function ApiClientsPage() {
         }}
       />
 
-      {mounted && (
+      {mounted && (canCreate || canEdit) && (
         <Modal
           title={editing ? "แก้ไข Client" : "สร้าง Client"}
           open={openModal}
@@ -346,6 +378,12 @@ export default function ApiClientsPage() {
           cancelText="ยกเลิก"
           destroyOnHidden
           forceRender
+          mask={{ closable: false }}
+          styles={{
+            mask: {
+              backgroundColor: "rgba(15, 23, 42, 0.35)",
+            },
+          }}
         >
           <Form layout="vertical" form={form}>
             <Form.Item
