@@ -3,6 +3,10 @@
 import { useEffect, useMemo, useState } from "react";
 import {Table,Button,Modal,Form,Input,Select,Space,Tag,message,Typography,Popconfirm,DatePicker,} from "antd";
 import dayjs from "dayjs";
+import { useRouter } from "next/navigation";
+import useAuth from "@/hooks/useAuth";
+import { hasPermission } from "@/lib/permissions";
+import LoadingOrb from "../../components/LoadingOrb";
 
 const { Text, Paragraph } = Typography;
 
@@ -17,8 +21,28 @@ export default function ApiTokensPage() {
   const [openCreateModal, setOpenCreateModal] = useState(false);
   const [createdTokenModal, setCreatedTokenModal] = useState(false);
   const [plainToken, setPlainToken] = useState("");
-
   const [form] = Form.useForm();
+
+  // #region Auth & Permissions
+  const router = useRouter();
+  const { user, loadingUser } = useAuth();
+
+  const canView = hasPermission(user, "api_tokens.view");
+  const canCreate = hasPermission(user, "api_tokens.create");
+  const canrevoke = hasPermission(user, "api_tokens.revoke");
+
+  useEffect(() => {
+    if (loadingUser) return;
+    if (!user) {
+      router.replace("/login");
+      return;
+    }
+    if (!canView) {
+      router.replace("/admin");
+    }
+  }, [loadingUser, user, canView, router]);
+  // #endregion
+
 
   useEffect(() => {
     setMounted(true);
@@ -253,9 +277,9 @@ export default function ApiTokensPage() {
               okText="Revoke"
               cancelText="ยกเลิก"
               onConfirm={() => handleRevokeToken(record)}
-              disabled={disabled}
+              disabled={disabled || !canrevoke}
             >
-              <Button danger size="small" disabled={disabled}>
+              <Button danger size="small" disabled={disabled || !canrevoke}>
                 Revoke
               </Button>
             </Popconfirm>
@@ -264,6 +288,10 @@ export default function ApiTokensPage() {
       },
     },
   ];
+
+  if (loadingUser) return <LoadingOrb />;
+  if (!user) return null;
+  if (!canView) return null;
 
   return (
     <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -283,9 +311,11 @@ export default function ApiTokensPage() {
             onChange={(e) => setSearch(e.target.value)}
             className="w-full sm:w-[280px]"
           />
-          <Button type="primary" onClick={handleOpenCreate}>
-            + Generate Token
-          </Button>
+          {canCreate && (
+            <Button type="primary" onClick={handleOpenCreate} >
+              + Generate Token
+            </Button>
+          )}
         </div>
       </div>
 
@@ -301,7 +331,7 @@ export default function ApiTokensPage() {
         scroll={{ x: 900 }}
       />
 
-      {mounted && (
+      {mounted && canCreate &&(
         <>
           <Modal
             title="Generate API Token"
@@ -349,7 +379,7 @@ export default function ApiTokensPage() {
               </Form.Item>
             </Form>
           </Modal>
-
+          
           <Modal
             title="Token ถูกสร้างเรียบร้อยแล้ว"
             open={createdTokenModal}
