@@ -1,11 +1,7 @@
 /*
-
-
 🔄 STEP 3: Refresh Token
     POST http://localhost:3000/api/access/refresh
   เอา accessToken ใหม่ไปใช้ต่อ
-
-
 
 
   const refreshToken = localStorage.getItem("refreshToken");
@@ -23,7 +19,19 @@
 
 
 
+  1) Login
+  POST /api/access/login
+  ได้ accessToken + refreshToken
 
+  2) ยิง API ปกติ
+  ใช้ accessToken แนบ Authorization
+
+  3) ถ้า API ตอบ 401 เพราะ accessToken หมดอายุ
+  ค่อยยิง
+  POST /api/access/refresh
+
+  4) ได้ accessToken ใหม่
+  เอาไปยิง API เดิมอีกครั้ง
 */
 
 import { NextResponse } from "next/server";
