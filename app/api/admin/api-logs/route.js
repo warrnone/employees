@@ -5,6 +5,7 @@ export async function GET(req) {
   try {
     const { searchParams } = new URL(req.url);
 
+    // 🔹 Filters
     const client_id = searchParams.get("client_id");
     const method = searchParams.get("method");
     const status = searchParams.get("status");
@@ -12,9 +13,21 @@ export async function GET(req) {
     const date_from = searchParams.get("date_from");
     const date_to = searchParams.get("date_to");
 
+    // 🔹 Pagination (สำคัญ)
+    const page = Math.max(Number(searchParams.get("page") || 1), 1);
+    const pageSize = Math.min(
+      Math.max(Number(searchParams.get("pageSize") || 10), 1),
+      100
+    );
+
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
+
+    // 🔹 Base Query
     let query = supabaseAdmin
       .from("api_access_logs")
-      .select(`
+      .select(
+        `
         id,
         client_id,
         token_id,
@@ -34,9 +47,13 @@ export async function GET(req) {
           client_code,
           client_name
         )
-      `)
-      .order("created_at", { ascending: false });
+      `,
+        { count: "exact" } // ⭐ เอา total count
+      )
+      .order("created_at", { ascending: false })
+      .range(from, to); // ⭐ จำกัดข้อมูล
 
+    // 🔹 Filters
     if (client_id) {
       query = query.eq("client_id", client_id);
     }
@@ -73,13 +90,20 @@ export async function GET(req) {
       );
     }
 
-    const { data, error } = await query;
+    // 🔹 Execute
+    const { data, error, count } = await query;
 
     if (error) throw error;
 
     return NextResponse.json({
       success: true,
       data: data || [],
+      pagination: {
+        page,
+        pageSize,
+        total: count || 0,
+        totalPages: Math.ceil((count || 0) / pageSize),
+      },
     });
   } catch (error) {
     console.error("GET /api/admin/api-logs error:", error);

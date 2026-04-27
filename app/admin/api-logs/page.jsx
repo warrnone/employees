@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {Table,Card,Input,Select,DatePicker,Button,Space,Tag,Modal,Typography,message,} from "antd";
 import dayjs from "dayjs";
 import { useRouter } from "next/navigation";
@@ -21,22 +21,10 @@ function prettyJson(value) {
 }
 
 function getStatusTag(statusCode) {
-  if (statusCode >= 200 && statusCode < 300) {
-    return <Tag color="green">{statusCode}</Tag>;
-  }
-
-  if (statusCode >= 300 && statusCode < 400) {
-    return <Tag color="blue">{statusCode}</Tag>;
-  }
-
-  if (statusCode >= 400 && statusCode < 500) {
-    return <Tag color="orange">{statusCode}</Tag>;
-  }
-
-  if (statusCode >= 500) {
-    return <Tag color="red">{statusCode}</Tag>;
-  }
-
+  if (statusCode >= 200 && statusCode < 300) return <Tag color="green">{statusCode}</Tag>;
+  if (statusCode >= 300 && statusCode < 400) return <Tag color="blue">{statusCode}</Tag>;
+  if (statusCode >= 400 && statusCode < 500) return <Tag color="orange">{statusCode}</Tag>;
+  if (statusCode >= 500) return <Tag color="red">{statusCode}</Tag>;
   return <Tag>{statusCode || "-"}</Tag>;
 }
 
@@ -53,6 +41,7 @@ function getMethodTag(method) {
 }
 
 export default function ApiLogsPage() {
+  const [mounted, setMounted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [logs, setLogs] = useState([]);
   const [clients, setClients] = useState([]);
@@ -66,24 +55,31 @@ export default function ApiLogsPage() {
   const [selectedLog, setSelectedLog] = useState(null);
   const [detailOpen, setDetailOpen] = useState(false);
 
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [total, setTotal] = useState(0);
 
-  // #region Auth & Permissions
   const router = useRouter();
   const { user, loadingUser } = useAuth();
 
   const canView = hasPermission(user, "api_logs.view");
 
   useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
     if (loadingUser) return;
+
     if (!user) {
       router.replace("/login");
       return;
     }
+
     if (!canView) {
       router.replace("/admin");
     }
   }, [loadingUser, user, canView, router]);
-  // #endregion
 
   const fetchClients = async () => {
     try {
@@ -100,11 +96,29 @@ export default function ApiLogsPage() {
     }
   };
 
-  const fetchLogs = async () => {
+  const fetchLogs = async (nextPage = page, nextPageSize = pageSize) => {
     try {
       setLoading(true);
 
-      const res = await fetch("/api/admin/api-logs");
+      const params = new URLSearchParams({
+        page: String(nextPage),
+        pageSize: String(nextPageSize),
+      });
+
+      if (search.trim()) params.set("search", search.trim());
+      if (clientFilter) params.set("client_id", clientFilter);
+      if (methodFilter) params.set("method", methodFilter);
+      if (statusFilter) params.set("status", statusFilter);
+
+      if (dateRange?.[0]) {
+        params.set("date_from", dateRange[0].startOf("day").toISOString());
+      }
+
+      if (dateRange?.[1]) {
+        params.set("date_to", dateRange[1].endOf("day").toISOString());
+      }
+
+      const res = await fetch(`/api/admin/api-logs?${params.toString()}`);
       const json = await res.json();
 
       if (!res.ok) {
@@ -112,6 +126,9 @@ export default function ApiLogsPage() {
       }
 
       setLogs(json.data || []);
+      setTotal(json.pagination?.total || 0);
+      setPage(json.pagination?.page || nextPage);
+      setPageSize(json.pagination?.pageSize || nextPageSize);
     } catch (error) {
       message.error(error.message || "โหลด API Logs ไม่สำเร็จ");
     } finally {
@@ -120,58 +137,22 @@ export default function ApiLogsPage() {
   };
 
   useEffect(() => {
+    if (loadingUser) return;
+    if (!user) return;
+    if (!canView) return;
+
     fetchClients();
-    fetchLogs();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loadingUser, canView]);
 
-  const filteredLogs = useMemo(() => {
-    return logs.filter((item) => {
-      const keyword = search.trim().toLowerCase();
+  useEffect(() => {
+    if (loadingUser) return;
+    if (!user) return;
+    if (!canView) return;
 
-      const matchesSearch =
-        !keyword ||
-        item.endpoint?.toLowerCase().includes(keyword) ||
-        item.method?.toLowerCase().includes(keyword) ||
-        item.request_ip?.toLowerCase().includes(keyword) ||
-        item.user_agent?.toLowerCase().includes(keyword) ||
-        item.client?.client_name?.toLowerCase().includes(keyword) ||
-        item.client?.client_code?.toLowerCase().includes(keyword) ||
-        String(item.status_code || "").includes(keyword) ||
-        item.error_message?.toLowerCase().includes(keyword);
-
-      const matchesClient =
-        !clientFilter || item.client_id === clientFilter;
-
-      const matchesMethod =
-        !methodFilter ||
-        String(item.method || "").toUpperCase() === methodFilter;
-
-      const matchesStatus =
-        !statusFilter ||
-        (statusFilter === "success" && item.is_success) ||
-        (statusFilter === "error" && !item.is_success);
-
-      const matchesDate =
-        !dateRange ||
-        !dateRange[0] ||
-        !dateRange[1] ||
-        (() => {
-          const createdAt = dayjs(item.created_at);
-          return (
-            createdAt.isAfter(dateRange[0].startOf("day")) &&
-            createdAt.isBefore(dateRange[1].endOf("day"))
-          );
-        })();
-
-      return (
-        matchesSearch &&
-        matchesClient &&
-        matchesMethod &&
-        matchesStatus &&
-        matchesDate
-      );
-    });
-  }, [logs, search, clientFilter, methodFilter, statusFilter, dateRange]);
+    fetchLogs(1, pageSize);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loadingUser, canView, search, clientFilter, methodFilter, statusFilter, dateRange]);
 
   const handleResetFilters = () => {
     setSearch("");
@@ -184,6 +165,16 @@ export default function ApiLogsPage() {
   const handleOpenDetail = (record) => {
     setSelectedLog(record);
     setDetailOpen(true);
+  };
+
+  const handleCloseDetail = () => {
+    setDetailOpen(false);
+  };
+
+  const handleAfterDetailOpenChange = (open) => {
+    if (!open) {
+      setSelectedLog(null);
+    }
   };
 
   const columns = [
@@ -262,7 +253,6 @@ export default function ApiLogsPage() {
     },
   ];
 
-
   if (loadingUser) return <LoadingOrb />;
   if (!user) return null;
   if (!canView) return null;
@@ -281,7 +271,7 @@ export default function ApiLogsPage() {
             </p>
           </div>
 
-          <Button onClick={fetchLogs}>Refresh</Button>
+          <Button onClick={() => fetchLogs(page, pageSize)}>Refresh</Button>
         </div>
 
         <div className="mb-6 grid grid-cols-1 gap-3 lg:grid-cols-5">
@@ -346,122 +336,132 @@ export default function ApiLogsPage() {
           rowKey="id"
           loading={loading}
           columns={columns}
-          dataSource={filteredLogs}
+          dataSource={logs}
           pagination={{
-            pageSize: 10,
+            current: page,
+            pageSize,
+            total,
             showSizeChanger: false,
+            showTotal: (totalRows) => `ทั้งหมด ${totalRows} รายการ`,
+            onChange: (nextPage, nextPageSize) => {
+              fetchLogs(nextPage, nextPageSize);
+            },
           }}
           scroll={{ x: 1300 }}
         />
       </Card>
 
-      <Modal
-        title="รายละเอียด API Log"
-        open={detailOpen}
-        onCancel={() => {
-          setDetailOpen(false);
-          setSelectedLog(null);
-        }}
-        footer={[
-          <Button
-            key="close"
-            onClick={() => {
-              setDetailOpen(false);
-              setSelectedLog(null);
-            }}
-          >
-            ปิด
-          </Button>,
-        ]}
-        width={900}
-      >
-        {selectedLog && (
-          <div className="space-y-5">
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+      {mounted && (
+        <Modal
+          title="รายละเอียด API Log"
+          open={detailOpen}
+          onCancel={handleCloseDetail}
+          afterOpenChange={handleAfterDetailOpenChange}
+          footer={[
+            <Button key="close" onClick={handleCloseDetail}>
+              ปิด
+            </Button>,
+          ]}
+          width={900}
+          destroyOnHidden
+          forceRender
+          mask={{ closable: false }}
+          styles={{
+            mask: {
+              backgroundColor: "rgba(15, 23, 42, 0.35)",
+            },
+          }}
+        >
+          {selectedLog && (
+            <div className="space-y-5">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div className="rounded-2xl border border-slate-200 p-4">
+                  <div className="mb-3 text-sm font-semibold text-slate-700">
+                    ข้อมูลทั่วไป
+                  </div>
+                  <div className="space-y-2 text-sm text-slate-600">
+                    <div>
+                      <span className="font-medium">เวลา:</span>{" "}
+                      {selectedLog.created_at
+                        ? dayjs(selectedLog.created_at).format(
+                            "DD/MM/YYYY HH:mm:ss"
+                          )
+                        : "-"}
+                    </div>
+                    <div>
+                      <span className="font-medium">Client:</span>{" "}
+                      {selectedLog.client?.client_name || "-"}{" "}
+                      {selectedLog.client?.client_code
+                        ? `(${selectedLog.client.client_code})`
+                        : ""}
+                    </div>
+                    <div>
+                      <span className="font-medium">Method:</span>{" "}
+                      {selectedLog.method || "-"}
+                    </div>
+                    <div>
+                      <span className="font-medium">Endpoint:</span>{" "}
+                      {selectedLog.endpoint || "-"}
+                    </div>
+                    <div>
+                      <span className="font-medium">Status Code:</span>{" "}
+                      {selectedLog.status_code || "-"}
+                    </div>
+                    <div>
+                      <span className="font-medium">Success:</span>{" "}
+                      {selectedLog.is_success ? "Yes" : "No"}
+                    </div>
+                    <div>
+                      <span className="font-medium">IP:</span>{" "}
+                      {selectedLog.request_ip || "-"}
+                    </div>
+                    <div>
+                      <span className="font-medium">User Agent:</span>{" "}
+                      {selectedLog.user_agent || "-"}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-slate-200 p-4">
+                  <div className="mb-3 text-sm font-semibold text-slate-700">
+                    Error Message
+                  </div>
+                  <Paragraph className="!mb-0 whitespace-pre-wrap rounded-xl bg-slate-50 p-3 text-sm">
+                    {selectedLog.error_message || "-"}
+                  </Paragraph>
+                </div>
+              </div>
+
               <div className="rounded-2xl border border-slate-200 p-4">
                 <div className="mb-3 text-sm font-semibold text-slate-700">
-                  ข้อมูลทั่วไป
+                  Request Query
                 </div>
-                <div className="space-y-2 text-sm text-slate-600">
-                  <div>
-                    <span className="font-medium">เวลา:</span>{" "}
-                    {selectedLog.created_at
-                      ? dayjs(selectedLog.created_at).format("DD/MM/YYYY HH:mm:ss")
-                      : "-"}
-                  </div>
-                  <div>
-                    <span className="font-medium">Client:</span>{" "}
-                    {selectedLog.client?.client_name || "-"}{" "}
-                    {selectedLog.client?.client_code
-                      ? `(${selectedLog.client.client_code})`
-                      : ""}
-                  </div>
-                  <div>
-                    <span className="font-medium">Method:</span>{" "}
-                    {selectedLog.method || "-"}
-                  </div>
-                  <div>
-                    <span className="font-medium">Endpoint:</span>{" "}
-                    {selectedLog.endpoint || "-"}
-                  </div>
-                  <div>
-                    <span className="font-medium">Status Code:</span>{" "}
-                    {selectedLog.status_code || "-"}
-                  </div>
-                  <div>
-                    <span className="font-medium">Success:</span>{" "}
-                    {selectedLog.is_success ? "Yes" : "No"}
-                  </div>
-                  <div>
-                    <span className="font-medium">IP:</span>{" "}
-                    {selectedLog.request_ip || "-"}
-                  </div>
-                  <div>
-                    <span className="font-medium">User Agent:</span>{" "}
-                    {selectedLog.user_agent || "-"}
-                  </div>
-                </div>
+                <pre className="overflow-x-auto rounded-xl bg-slate-950 p-4 text-xs text-slate-100">
+                  {prettyJson(selectedLog.request_query)}
+                </pre>
               </div>
 
               <div className="rounded-2xl border border-slate-200 p-4">
                 <div className="mb-3 text-sm font-semibold text-slate-700">
-                  Error Message
+                  Request Body
                 </div>
-                <Paragraph className="!mb-0 whitespace-pre-wrap rounded-xl bg-slate-50 p-3 text-sm">
-                  {selectedLog.error_message || "-"}
-                </Paragraph>
+                <pre className="overflow-x-auto rounded-xl bg-slate-950 p-4 text-xs text-slate-100">
+                  {prettyJson(selectedLog.request_body)}
+                </pre>
               </div>
-            </div>
 
-            <div className="rounded-2xl border border-slate-200 p-4">
-              <div className="mb-3 text-sm font-semibold text-slate-700">
-                Request Query
+              <div className="rounded-2xl border border-slate-200 p-4">
+                <div className="mb-3 text-sm font-semibold text-slate-700">
+                  Response Body
+                </div>
+                <pre className="overflow-x-auto rounded-xl bg-slate-950 p-4 text-xs text-slate-100">
+                  {prettyJson(selectedLog.response_body)}
+                </pre>
               </div>
-              <pre className="overflow-x-auto rounded-xl bg-slate-950 p-4 text-xs text-slate-100">
-                {prettyJson(selectedLog.request_query)}
-              </pre>
             </div>
-
-            <div className="rounded-2xl border border-slate-200 p-4">
-              <div className="mb-3 text-sm font-semibold text-slate-700">
-                Request Body
-              </div>
-              <pre className="overflow-x-auto rounded-xl bg-slate-950 p-4 text-xs text-slate-100">
-                {prettyJson(selectedLog.request_body)}
-              </pre>
-            </div>
-
-            <div className="rounded-2xl border border-slate-200 p-4">
-              <div className="mb-3 text-sm font-semibold text-slate-700">
-                Response Body
-              </div>
-              <pre className="overflow-x-auto rounded-xl bg-slate-950 p-4 text-xs text-slate-100">
-                {prettyJson(selectedLog.response_body)}
-              </pre>
-            </div>
-          </div>
-        )}
-      </Modal>
+          )}
+        </Modal>
+      )}
     </div>
   );
 }
